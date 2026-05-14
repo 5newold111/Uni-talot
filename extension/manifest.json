@@ -1,0 +1,38 @@
+{
+  "manifest_version": 3,
+  "name": "EC3D-Bridge",
+  "version": "1.0.0",
+  "description": "ECサイトの商品を自動で3D化してHomestylerに登録するツール",
+  "permissions": ["activeTab", "scripting", "storage"],
+  "host_permissions": [
+    "https://*.nitori-net.jp/*",
+    "https://*.ikea.com/*",
+    "https://*.muji.com/*",
+    "https://*.amazon.co.jp/*",
+    "https://*.rakuten.co.jp/*",
+    "http://localhost:3000/*"
+  ],
+  "action": {
+    "default_popup": "popup/index.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png"
+    }
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://*.nitori-net.jp/*",
+        "https://*.ikea.com/*",
+        "https://*.muji.com/*",
+        "https://*.amazon.co.jp/*",
+        "https://*.rakuten.co.jp/*"
+      ],
+      "js": ["scrapers/site_configs.js", "content_scripts/scraper.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "background": {
+    "service_worker": "background/service_worker.js"
+  }
+}

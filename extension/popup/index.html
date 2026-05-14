@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <style>
+    body {
+      width: 320px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      margin: 0;
+      padding: 16px;
+      background: #fafafa;
+      color: #1a1a1a;
+    }
+    h1 { font-size: 16px; margin: 0 0 12px; color: #333; }
+    button {
+      width: 100%;
+      padding: 10px;
+      background: #2c5364;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      font-size: 14px;
+      cursor: pointer;
+    }
+    button:disabled { background: #ccc; cursor: not-allowed; }
+    #status {
+      margin-top: 12px;
+      font-size: 13px;
+      color: #555;
+      white-space: pre-wrap;
+      min-height: 40px;
+      line-height: 1.6;
+    }
+    #status.error { color: #c0392b; }
+    #status.success { color: #27ae60; }
+    .product-info {
+      margin-top: 8px;
+      padding: 8px;
+      background: #eef2f7;
+      border-radius: 4px;
+      font-size: 12px;
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <h1>EC3D-Bridge</h1>
+  <button id="startBtn">この商品を3D化 → Homestylerへ</button>
+  <div id="status">商品ページを開いてボタンを押してください</div>
+  <div class="product-info" id="productInfo"></div>
+  <script src="popup.js"></script>
+</body>
+</html>

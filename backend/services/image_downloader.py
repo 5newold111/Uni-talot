@@ -1,0 +1,49 @@
+import httpx
+import os
+import uuid
+import logging
+from PIL import Image
+from io import BytesIO
+
+logger = logging.getLogger(__name__)
+
+
+async def download_main_image(images: list[dict]) -> str:
+    """
+    商品画像リストから最初の有効な画像をダウンロードして保存する。
+    type="front" があればそれを優先する。
+    """
+    os.makedirs("output", exist_ok=True)
+
+    sorted_images = sorted(
+        images,
+        key=lambda x: {"front": 0, "": 1, "side": 2}.get(x.get("type", ""), 1)
+    )
+
+    for img in sorted_images:
+        url = img.get("url", "")
+        if not url or not url.startswith("http"):
+            continue
+        try:
+            async with httpx.AsyncClient(timeout=30, follow_redirects=True) as client:
+                response = await client.get(url, headers={
+                    "User-Agent": "Mozilla/5.0 (compatible; EC3DBridge/1.0)"
+                })
+            if response.status_code != 200:
+                continue
+
+            image = Image.open(BytesIO(response.content)).convert("RGB")
+            if image.width < 400 or image.height < 400:
+                logger.warning(f"画像が小さすぎるためスキップ: {url} ({image.width}x{image.height})")
+                continue
+
+            save_path = f"output/{uuid.uuid4()}_input.jpg"
+            image.save(save_path, "JPEG", quality=95)
+            logger.info(f"画像保存完了: {save_path} ({image.width}x{image.height})")
+            return save_path
+
+        except Exception as e:
+            logger.warning(f"画像ダウンロード失敗 ({url}): {e}")
+            continue
+
+    raise RuntimeError("有効な商品画像が1枚もダウンロードできませんでした")
