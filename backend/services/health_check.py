@@ -25,14 +25,13 @@ def _check_blender() -> dict:
 
 
 def _check_3d_provider() -> dict:
-    use_tripo = os.getenv("USE_TRIPO", "false").lower() == "true"
-    if use_tripo:
-        key = os.getenv("FAL_API_KEY", "")
-        ok = bool(key) and key != "your_fal_api_key_here"
-        return {"ok": ok, "provider": "tripo", "detail": "FAL_API_KEY 設定済み" if ok else "FAL_API_KEY 未設定"}
-    key = os.getenv("HF_TOKEN", "")
-    ok = bool(key) and key != "your_huggingface_token_here"
-    return {"ok": ok, "provider": "trellis", "detail": "HF_TOKEN 設定済み" if ok else "HF_TOKEN 未設定"}
+    key = os.getenv("FAL_API_KEY", "")
+    ok = bool(key) and key != "your_fal_api_key_here"
+    return {
+        "ok": ok,
+        "provider": "tripo",
+        "detail": "FAL_API_KEY 設定済み" if ok else "FAL_API_KEY 未設定",
+    }
 
 
 def _check_homestyler() -> dict:

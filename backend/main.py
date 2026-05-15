@@ -30,10 +30,16 @@ async def lifespan(_app: FastAPI):
 
 app = FastAPI(title="EC3D-Bridge API", lifespan=lifespan)
 
+# Chrome 拡張機能 (chrome-extension://<ID>) と localhost からの呼び出しのみ許可。
+# 任意オリジン公開はバックエンドへの不正リクエスト経路になるため、明示的に絞る。
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_methods=["*"],
+    allow_origin_regex=(
+        r"^(chrome-extension://[a-zA-Z0-9_-]+"
+        r"|https?://localhost(:\d+)?"
+        r"|https?://127\.0\.0\.1(:\d+)?)$"
+    ),
+    allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["*"],
 )
 

@@ -18,9 +18,15 @@ flowchart LR
 | ステップ | 実装 | 失敗時の挙動 |
 |---|---|---|
 | 1. 画像DL | `services/image_downloader.py` | 400px 未満や 404 をスキップして次の画像へ |
-| 2. 3D生成 | `services/model_generator.py` | `USE_TRIPO` で TRELLIS / Tripo を切替 |
+| 2. 3D生成 | `services/model_generator.py` | fal.ai Tripo 2.5 API を呼び出し |
 | 3. スケール補正 | `scripts/scale_model.py` (Blender) | 寸法 0 ならスキップして原本を返す |
 | 4. アップロード | `services/homestyler_bot.py` | エラー時スクリーンショットを `logs/` に保存 |
+
+> **3D 生成プロバイダーについて**
+> 当初 TRELLIS 2 (HuggingFace) / Tripo (fal.ai) の二択構成でしたが、TRELLIS 2 は HF Inference API では提供されておらず (Gradio Space のみ)、Tripo 一本化しました。HF Inference 経由で TRELLIS を再導入する場合は [microsoft/TRELLIS のリポジトリ](https://huggingface.co/microsoft/TRELLIS) の最新提供形態を確認してください。
+
+> **Homestyler 連携の制約**
+> Homestyler には公式 API がなく、Playwright によるブラウザ自動操作で対応しています。実環境では reCAPTCHA や Google OAuth 認証が挟まる可能性があり、`extension/services/homestyler_bot.py` の `SELECTORS` は推測値です。本番運用前に必ず後述の [Homestyler セレクター検証手順](#homestyler-セレクター検証手順) を実施してください。
 
 ## クイックスタート
 
@@ -52,12 +58,19 @@ uvicorn main:app --host 0.0.0.0 --port 3000 --reload
 
 | 変数 | 説明 |
 |---|---|
-| `HF_TOKEN` | HuggingFace API トークン (TRELLIS 2 利用時) |
-| `FAL_API_KEY` | fal.ai API キー (Tripo 利用時) |
-| `USE_TRIPO` | `true` で Tripo (fal.ai)、`false`/未設定で TRELLIS 2 |
+| `FAL_API_KEY` | fal.ai API キー (Tripo 2.5 利用) — [fal.ai](https://fal.ai/) で発行 |
 | `HOMESTYLER_EMAIL` / `HOMESTYLER_PASSWORD` | Homestyler ログイン認証情報 |
 | `BLENDER_PATH` | Blender 実行ファイルへの絶対パス (default: `blender`) |
 | `PORT` | サーバーポート (default: `3000`) |
+
+## セキュリティ: CORS
+
+バックエンドの CORS は以下のオリジンのみ許可します:
+
+- `chrome-extension://<ID>` — 拡張機能本体
+- `http(s)://localhost(:port)?` / `http(s)://127.0.0.1(:port)?` — ローカル開発用
+
+それ以外の Web サイトから `fetch("http://localhost:3000/...")` した場合は CORS で拒否されます (`tests/test_cors.py` で検証済み)。
 
 ## API
 
@@ -154,12 +167,55 @@ extension/
 .github/workflows/test.yml      # CI
 ```
 
+### Homestyler セレクター検証手順
+
+`services/homestyler_bot.py` の `SELECTORS` は推測値のため、実環境で動かす前に必ず以下を実施してください。
+
+1. **headless モードを無効化**
+
+   ```python
+   # backend/services/homestyler_bot.py
+   browser = await p.chromium.launch(
+       headless=False,   # ← 検証中は False
+       slow_mo=500
+   )
+   ```
+
+2. **対話的に1回流す**
+
+   ```bash
+   cd backend
+   python3 -c "
+   import asyncio
+   from services.homestyler_bot import upload_to_homestyler
+   asyncio.run(upload_to_homestyler(
+       glb_path='output/test_scaled.glb',
+       product_name='デバッグ用',
+       dimensions={'width_cm': 80, 'depth_cm': 40, 'height_cm': 75}
+   ))
+   "
+   ```
+
+   ブラウザが起動するので、各ステップで止まる箇所を確認します:
+
+   - **ログインフォームに到達できない** → ホームページ構造変更。`SELECTORS["login_button"]` を実画面 DevTools でコピー
+   - **CAPTCHA が出る** → Playwright のみでは突破不可。手動ログイン後 `context.storage_state()` でセッション保存し、次回 `storage_state=...` でロードする方式に変更が必要
+   - **OAuth (Google ログインなど) にリダイレクト** → メール/パスワードフローが廃止された可能性。代替の認証フローを実装するか、保存セッション方式に切替
+   - **ファイル選択ダイアログが開かない** → `SELECTORS["upload_button"]` の更新が必要
+   - **アップロード後フォームの項目名が違う** → `SELECTORS["name_input"]` 等を実画面でコピー
+
+3. **動作したら headless=True に戻してコミット**
+
+4. **エラー時のスクリーンショットを活用**
+
+   失敗時は `logs/error_<product_name>.png` に DOM スナップショットが保存されます。これを開いて当該要素のセレクターを DevTools で再特定するのが最短ルートです。
+
 ## トラブルシューティング
 
 | 症状 | 原因 | 対処 |
 |---|---|---|
 | popup が `connection refused` | バックエンド未起動 | `uvicorn main:app --port 3000` |
-| `HF_TOKEN が .env に設定されていません` | トークン未設定 | `.env` に `HF_TOKEN=...` または `USE_TRIPO=true` & `FAL_API_KEY=...` |
+| `FAL_API_KEY が .env に設定されていません` | API キー未設定 | `.env` に `FAL_API_KEY=...` を設定 |
 | `Blenderスクリプトがエラーで終了` | Blender 未インストールまたはパス誤り | `blender --version` で確認、`.env` の `BLENDER_PATH` を修正 |
 | `有効な商品画像が1枚もダウンロードできません` | 画像URLが古い or サーバー保護 | DevTools で画像 URL を確認し `site_configs.js` を更新 |
 | `ログインフィールドが見つかりません` | Homestyler UI 変更 | `homestyler_bot.py` で `headless=False` にしてセレクターを確認・更新 |
