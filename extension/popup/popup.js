@@ -1,4 +1,6 @@
 const API_BASE = "http://localhost:3000/api";
+const POLL_INTERVAL_MS = 1500;
+const POLL_TIMEOUT_MS = 5 * 60 * 1000;  // 5分でポーリング打ち切り
 
 const btn = document.getElementById("startBtn");
 const statusDiv = document.getElementById("status");
@@ -31,6 +33,27 @@ async function getProductData(tabId) {
   return response.data;
 }
 
+async function pollJob(jobId) {
+  const start = Date.now();
+  while (Date.now() - start < POLL_TIMEOUT_MS) {
+    const res = await fetch(`${API_BASE}/status/${jobId}`);
+    if (!res.ok) {
+      throw new Error(`ステータス取得失敗: ${res.status}`);
+    }
+    const job = await res.json();
+    setStatus(job.message || `状態: ${job.status}`);
+
+    if (job.status === "success") {
+      return job;
+    }
+    if (job.status === "error") {
+      throw new Error(job.error || job.message || "サーバーでエラーが発生しました");
+    }
+    await new Promise(r => setTimeout(r, POLL_INTERVAL_MS));
+  }
+  throw new Error("タイムアウトしました");
+}
+
 btn.addEventListener("click", async () => {
   btn.disabled = true;
   setStatus("[準備中] 商品ページの情報を取得しています...");
@@ -51,7 +74,7 @@ btn.addEventListener("click", async () => {
       画像: ${productData.images.length}枚
     `;
 
-    setStatus("[1/4] バックエンドサーバーに送信しています...");
+    setStatus("バックエンドにジョブを送信しています...");
 
     const response = await fetch(`${API_BASE}/process`, {
       method: "POST",
@@ -64,8 +87,12 @@ btn.addEventListener("click", async () => {
       throw new Error(err.detail || `サーバーエラー: ${response.status}`);
     }
 
-    const result = await response.json();
-    setStatus(`完了！\n「${result.product}」をHomestylerに登録しました`, "success");
+    const { job_id } = await response.json();
+    setStatus(`ジョブ受付 (${job_id})。処理状況を取得中...`);
+
+    const job = await pollJob(job_id);
+    const glb = job.result?.glb ? `\n生成GLB: ${job.result.glb.split('/').pop()}` : "";
+    setStatus(`完了！\n「${job.result?.product || productData.product_name}」をHomestylerに登録しました${glb}`, "success");
 
   } catch (error) {
     setStatus(`エラー: ${error.message}`, "error");
