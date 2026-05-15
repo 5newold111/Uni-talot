@@ -41,12 +41,30 @@
       font-size: 12px;
       display: none;
     }
+    .progress {
+      margin-top: 10px;
+      height: 6px;
+      background: #e6e9ee;
+      border-radius: 3px;
+      overflow: hidden;
+      display: none;
+    }
+    .progress.visible { display: block; }
+    .progress > .bar {
+      height: 100%;
+      width: 0%;
+      background: #2c5364;
+      transition: width 0.35s ease-out;
+    }
+    .progress.success > .bar { background: #27ae60; }
+    .progress.error > .bar { background: #c0392b; }
   </style>
 </head>
 <body>
   <h1>EC3D-Bridge</h1>
   <button id="startBtn">この商品を3D化 → Homestylerへ</button>
   <div id="status">商品ページを開いてボタンを押してください</div>
+  <div class="progress" id="progress"><div class="bar" id="progressBar"></div></div>
   <div class="product-info" id="productInfo"></div>
   <script src="popup.js"></script>
 </body>

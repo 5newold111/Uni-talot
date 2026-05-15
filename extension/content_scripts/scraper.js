@@ -4,6 +4,12 @@
  * 注: site_configs.js は manifest.json の content_scripts で先に読み込まれる前提。
  */
 
+function getText(el) {
+  if (!el) return "";
+  // innerText は表示テキストに近いが JSDOM では未実装。textContent で代替する。
+  return (el.innerText !== undefined ? el.innerText : el.textContent || "").trim();
+}
+
 function extractProductData() {
   const hostname = window.location.hostname;
   const { site, config } = getSiteConfig(hostname);
@@ -20,12 +26,12 @@ function extractProductData() {
   };
 
   const nameEl = document.querySelector(config.name);
-  data.product_name = nameEl ? nameEl.innerText.trim() : document.title.trim();
+  data.product_name = nameEl ? getText(nameEl) : (document.title || "").trim();
 
   const imageEls = document.querySelectorAll(config.images);
   const seenUrls = new Set();
   imageEls.forEach((img, index) => {
-    const url = img.dataset.src || img.src || img.dataset.original || "";
+    const url = (img.dataset && img.dataset.src) || img.src || (img.dataset && img.dataset.original) || "";
     const cleanUrl = url.split("?")[0];
     if (url && !seenUrls.has(cleanUrl) && url.startsWith("http") && !url.includes("logo") && !url.includes("icon")) {
       seenUrls.add(cleanUrl);
@@ -37,11 +43,11 @@ function extractProductData() {
   });
 
   const specEls = document.querySelectorAll(config.dimensions);
-  const dimensionText = Array.from(specEls).map(el => el.innerText).join(" ");
+  const dimensionText = Array.from(specEls).map(getText).join(" ");
   data.dimensions = parseDimensions(dimensionText);
 
   const materialEls = document.querySelectorAll(config.material);
-  const materialText = Array.from(materialEls).map(el => el.innerText).join(" ");
+  const materialText = Array.from(materialEls).map(getText).join(" ");
   data.materials = parseMaterials(materialText);
 
   data.colors = parseColors(dimensionText + " " + materialText);
@@ -74,9 +80,11 @@ function parseDimensions(text) {
     return result;
   }
 
-  const widthMatch  = text.match(/(?:幅|横|[Ww])[：:\s]*([0-9.]+)\s*(mm|cm)?/i);
-  const depthMatch  = text.match(/(?:奥行|奥行き|[Dd])[：:\s]*([0-9.]+)\s*(mm|cm)?/i);
-  const heightMatch = text.match(/(?:高さ|高[：:\s]*|[Hh])[：:\s]*([0-9.]+)\s*(mm|cm)?/i);
+  // 日本語/英語両対応。単独の [Ww][Dd][Hh] は "Width" 内の "h" 等末尾文字に誤マッチするため
+  // 単語境界 \b で囲み、独立した文字のみ受け付ける。
+  const widthMatch  = text.match(/(?:幅|横|width|\b[Ww]\b)\s*[:：]?\s*([0-9.]+)\s*(mm|cm)?/i);
+  const depthMatch  = text.match(/(?:奥行き|奥行|depth|\b[Dd]\b)\s*[:：]?\s*([0-9.]+)\s*(mm|cm)?/i);
+  const heightMatch = text.match(/(?:高さ|height|\b[Hh]\b)\s*[:：]?\s*([0-9.]+)\s*(mm|cm)?/i);
 
   if (widthMatch)  result.width_cm  = toCm(widthMatch[1],  widthMatch[2]);
   if (depthMatch)  result.depth_cm  = toCm(depthMatch[1],  depthMatch[2]);

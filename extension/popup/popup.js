@@ -5,10 +5,27 @@ const POLL_TIMEOUT_MS = 5 * 60 * 1000;  // 5分でポーリング打ち切り
 const btn = document.getElementById("startBtn");
 const statusDiv = document.getElementById("status");
 const productDiv = document.getElementById("productInfo");
+const progressEl = document.getElementById("progress");
+const progressBar = document.getElementById("progressBar");
 
 function setStatus(message, type = "") {
   statusDiv.textContent = message;
   statusDiv.className = type;
+}
+
+function setProgress(stepIndex, totalSteps, state = "") {
+  if (totalSteps > 0) {
+    progressEl.classList.add("visible");
+    const pct = Math.max(0, Math.min(100, (stepIndex / totalSteps) * 100));
+    progressBar.style.width = `${pct}%`;
+  }
+  progressEl.classList.remove("success", "error");
+  if (state) progressEl.classList.add(state);
+}
+
+function hideProgress() {
+  progressEl.classList.remove("visible", "success", "error");
+  progressBar.style.width = "0%";
 }
 
 async function getProductData(tabId) {
@@ -42,11 +59,14 @@ async function pollJob(jobId) {
     }
     const job = await res.json();
     setStatus(job.message || `状態: ${job.status}`);
+    setProgress(job.step_index, job.total_steps);
 
     if (job.status === "success") {
+      setProgress(job.total_steps, job.total_steps, "success");
       return job;
     }
     if (job.status === "error") {
+      setProgress(job.step_index, job.total_steps, "error");
       throw new Error(job.error || job.message || "サーバーでエラーが発生しました");
     }
     await new Promise(r => setTimeout(r, POLL_INTERVAL_MS));
@@ -58,6 +78,7 @@ btn.addEventListener("click", async () => {
   btn.disabled = true;
   setStatus("[準備中] 商品ページの情報を取得しています...");
   productDiv.style.display = "none";
+  hideProgress();
 
   try {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
