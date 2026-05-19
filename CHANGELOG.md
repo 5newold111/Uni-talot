@@ -6,6 +6,25 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and thi
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-05-19
+
+### Added
+- レートリミット: トークンバケットで `/api/process` を IP ベース制限 (`RATE_LIMIT_BURST` / `RATE_LIMIT_PER_SEC`)
+- `X-Forwarded-For` ヘッダの先頭値を IP として優先 (リバプロ対応)
+- 多言語対応: `/api/errors/guidance` が `Accept-Language` ヘッダで日英切替
+- 構造化ログ: `LOG_FORMAT=json` で 1行1JSON 出力に切替可能。extra フィールドも自動取込
+- pytest-cov によるカバレッジ計測 (`fail_under=70`、現状 83%)
+- CI に coverage アップロード追加
+- ルート直下に `Justfile` (test/lint/fmt/serve/openapi など)
+- `scripts/render_popup_screenshot.py` で README mockup を再生成可能
+
+### Changed
+- main.py が `services/logging_config.py` 経由でログ初期化
+- conftest.py で各テスト前にレートリミットバケットを自動リセット
+
+### Fixed
+- ruff format `--check` の差分を全件解消
+
 ## [0.4.0] - 2026-05-19
 
 ### Added

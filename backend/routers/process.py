@@ -1,10 +1,10 @@
 import asyncio
 import logging
 
-from fastapi import APIRouter, BackgroundTasks, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Header, HTTPException
 from pydantic import BaseModel, Field, HttpUrl, field_validator
 
-from services.errors import USER_GUIDANCE, ErrorCode, PipelineError
+from services.errors import USER_GUIDANCE, ErrorCode, PipelineError, guidance_for
 from services.homestyler_bot import upload_to_homestyler
 from services.image_downloader import download_main_image
 from services.job_manager import jobs
@@ -137,6 +137,16 @@ async def list_jobs(limit: int = 50):
 
 
 @router.get("/errors/guidance")
-async def error_guidance():
-    """フロントエンドが error_code → ユーザー向けメッセージを引くための辞書を返す。"""
-    return {"guidance": {k.value: v for k, v in USER_GUIDANCE.items()}}
+async def error_guidance(accept_language: str = Header(default="ja")):
+    """フロントエンドが error_code → ユーザー向けメッセージを引くための辞書を返す。
+    Accept-Language ヘッダの先頭値が "en*" なら英語、それ以外は日本語。"""
+    primary = accept_language.split(",")[0].strip() if accept_language else "ja"
+    table = guidance_for(primary)
+    return {
+        "language": "en" if primary.lower().startswith("en") else "ja",
+        "guidance": {k.value: v for k, v in table.items()},
+    }
+
+
+# 後方互換: ガイダンス辞書のデフォルト (日本語) も保持
+_ = USER_GUIDANCE

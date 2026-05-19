@@ -35,7 +35,10 @@ async function apiFetch(path, options = {}) {
 async function loadErrorGuidance() {
   if (Object.keys(ERROR_GUIDANCE).length) return ERROR_GUIDANCE;
   try {
-    const r = await apiFetch("/errors/guidance");
+    const lang = (navigator.language || "ja").split("-")[0];
+    const r = await apiFetch("/errors/guidance", {
+      headers: { "Accept-Language": lang },
+    });
     if (r.ok) ERROR_GUIDANCE = (await r.json()).guidance || {};
   } catch (_) {}
   return ERROR_GUIDANCE;

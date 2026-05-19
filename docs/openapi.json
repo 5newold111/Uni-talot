@@ -119,14 +119,36 @@
     "/api/errors/guidance": {
       "get": {
         "summary": "Error Guidance",
-        "description": "フロントエンドが error_code → ユーザー向けメッセージを引くための辞書を返す。",
+        "description": "フロントエンドが error_code → ユーザー向けメッセージを引くための辞書を返す。\nAccept-Language ヘッダの先頭値が \"en*\" なら英語、それ以外は日本語。",
         "operationId": "error_guidance_api_errors_guidance_get",
+        "parameters": [
+          {
+            "name": "accept-language",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "ja",
+              "title": "Accept-Language"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "Successful Response",
             "content": {
               "application/json": {
                 "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
               }
             }
           }

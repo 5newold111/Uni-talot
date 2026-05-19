@@ -41,6 +41,35 @@ USER_GUIDANCE = {
 }
 
 
+USER_GUIDANCE_EN = {
+    ErrorCode.INVALID_INPUT: "Invalid input data. Please reload the product page and retry.",
+    ErrorCode.IMAGE_DOWNLOAD_FAILED: (
+        "Failed to download the product image. Check the image URL on the product page."
+    ),
+    ErrorCode.IMAGE_TOO_SMALL: "The image resolution is too low (under 400px). Choose another image.",
+    ErrorCode.MODEL_API_KEY_MISSING: "FAL_API_KEY is not set. Check your .env file.",
+    ErrorCode.MODEL_QUOTA_EXCEEDED: "Check your Tripo / fal.ai credit balance.",
+    ErrorCode.MODEL_GENERATION_FAILED: "3D model generation failed. Please retry in a moment.",
+    ErrorCode.BLENDER_NOT_FOUND: "Blender was not found. Check BLENDER_PATH in your .env.",
+    ErrorCode.SCALE_FAILED: "Blender failed during scale correction.",
+    ErrorCode.HOMESTYLER_AUTH_FAILED: (
+        "Homestyler login failed. Check the credentials in your .env."
+    ),
+    ErrorCode.HOMESTYLER_UI_CHANGED: (
+        "Homestyler's UI may have changed. Recalibrate SELECTORS in homestyler_bot.py."
+    ),
+    ErrorCode.UPLOAD_FAILED: "Upload to Homestyler failed.",
+    ErrorCode.INTERNAL_ERROR: "Unexpected error. Inspect logs/app.log for details.",
+}
+
+
+def guidance_for(lang: str) -> dict:
+    """Accept-Language の先頭値から JA/EN を選び、ErrorCode → メッセージ辞書を返す。"""
+    if lang and lang.lower().startswith("en"):
+        return USER_GUIDANCE_EN
+    return USER_GUIDANCE
+
+
 class PipelineError(Exception):
     """パイプライン内部で発生した構造化エラー。"""
 

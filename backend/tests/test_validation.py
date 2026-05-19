@@ -85,6 +85,20 @@ def test_errors_guidance_endpoint(client):
     r = client.get("/api/errors/guidance")
     assert r.status_code == 200
     body = r.json()
-    assert "guidance" in body
+    assert body["language"] == "ja"
     assert "image_download_failed" in body["guidance"]
-    assert "model_quota_exceeded" in body["guidance"]
+    assert "FAL_API_KEY" in body["guidance"]["model_api_key_missing"]
+
+
+def test_errors_guidance_english(client):
+    r = client.get("/api/errors/guidance", headers={"Accept-Language": "en-US,en;q=0.9"})
+    assert r.status_code == 200
+    body = r.json()
+    assert body["language"] == "en"
+    assert "image" in body["guidance"]["image_download_failed"].lower()
+
+
+def test_errors_guidance_default_japanese(client):
+    r = client.get("/api/errors/guidance", headers={"Accept-Language": "fr-FR"})
+    assert r.status_code == 200
+    assert r.json()["language"] == "ja"

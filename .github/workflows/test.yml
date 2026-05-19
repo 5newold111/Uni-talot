@@ -22,8 +22,15 @@ jobs:
           cache-dependency-path: backend/requirements-dev.txt
       - name: Install dependencies
         run: pip install -r requirements-dev.txt
-      - name: Run pytest
-        run: pytest tests/ -v
+      - name: Run pytest with coverage
+        run: pytest tests/ -v --cov --cov-report=xml --cov-report=term
+      - name: Upload coverage XML
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-xml
+          path: backend/coverage.xml
+          if-no-files-found: ignore
 
   extension:
     name: Extension (node --test)
