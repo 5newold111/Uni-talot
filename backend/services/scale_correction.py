@@ -1,6 +1,7 @@
-import subprocess
-import os
 import logging
+import os
+import subprocess
+
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -22,23 +23,21 @@ def apply_real_scale(glb_path: str, width_cm: float, depth_cm: float, height_cm:
     output_path = glb_path.replace("_raw.glb", "_scaled.glb")
 
     cmd = [
-        BLENDER, "--background", "--python", os.path.abspath(SCRIPT),
+        BLENDER,
+        "--background",
+        "--python",
+        os.path.abspath(SCRIPT),
         "--",
         os.path.abspath(glb_path),
         os.path.abspath(output_path),
         str(width_cm),
         str(depth_cm),
-        str(height_cm)
+        str(height_cm),
     ]
 
     logger.info(f"Blender 実行: {' '.join(cmd)}")
 
-    result = subprocess.run(
-        cmd,
-        capture_output=True,
-        text=True,
-        timeout=90
-    )
+    result = subprocess.run(cmd, capture_output=True, text=True, timeout=90)
 
     if result.stdout:
         logger.info(f"[Blender stdout]\n{result.stdout}")

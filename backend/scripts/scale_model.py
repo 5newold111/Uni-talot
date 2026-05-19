@@ -2,15 +2,17 @@
 Blender ヘッドレスモードで呼び出されるスケール補正スクリプト。
 呼び出し方: blender --background --python scale_model.py -- <input> <output> <W> <D> <H>
 """
-import bpy
-import sys
+
 import os
+import sys
+
+import bpy
 
 
 def main():
     try:
         separator = sys.argv.index("--")
-        argv = sys.argv[separator + 1:]
+        argv = sys.argv[separator + 1 :]
     except ValueError:
         print("エラー: 引数が不足しています")
         sys.exit(1)
@@ -36,12 +38,12 @@ def main():
 
     bpy.ops.import_scene.gltf(filepath=os.path.abspath(input_path))
 
-    mesh_objects = [obj for obj in bpy.context.scene.objects if obj.type == 'MESH']
+    mesh_objects = [obj for obj in bpy.context.scene.objects if obj.type == "MESH"]
     if not mesh_objects:
         print("エラー: GLBにメッシュオブジェクトが見つかりません")
         sys.exit(1)
 
-    bpy.ops.object.select_all(action='DESELECT')
+    bpy.ops.object.select_all(action="DESELECT")
     for obj in mesh_objects:
         obj.select_set(True)
     bpy.context.view_layer.objects.active = mesh_objects[0]
@@ -74,11 +76,11 @@ def main():
     os.makedirs(os.path.dirname(os.path.abspath(output_path)), exist_ok=True)
     bpy.ops.export_scene.gltf(
         filepath=os.path.abspath(output_path),
-        export_format='GLB',
+        export_format="GLB",
         export_texcoords=True,
         export_normals=True,
-        export_materials='EXPORT',
-        export_selected=False
+        export_materials="EXPORT",
+        export_selected=False,
     )
 
     print(f"スケール補正完了 → {output_path}")

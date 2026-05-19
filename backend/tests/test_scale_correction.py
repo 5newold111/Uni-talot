@@ -1,5 +1,6 @@
 import subprocess
 from unittest.mock import patch
+
 from services.scale_correction import apply_real_scale
 
 
@@ -36,7 +37,7 @@ def test_invokes_blender_with_correct_args(tmp_path):
     assert "--python" in cmd
     assert "--" in cmd
     sep = cmd.index("--")
-    user_args = cmd[sep + 1:]
+    user_args = cmd[sep + 1 :]
     assert user_args[0].endswith("abc_raw.glb")
     assert user_args[1].endswith("abc_scaled.glb")
     assert user_args[2:5] == ["80.0", "40.0", "75.0"]

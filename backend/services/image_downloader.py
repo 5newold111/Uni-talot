@@ -1,9 +1,12 @@
-import httpx
+import logging
 import os
 import uuid
-import logging
-from PIL import Image
 from io import BytesIO
+
+import httpx
+from PIL import Image
+
+from services.http_retry import request_with_retry
 
 logger = logging.getLogger(__name__)
 
@@ -16,8 +19,7 @@ async def download_main_image(images: list[dict]) -> str:
     os.makedirs("output", exist_ok=True)
 
     sorted_images = sorted(
-        images,
-        key=lambda x: {"front": 0, "": 1, "side": 2}.get(x.get("type", ""), 1)
+        images, key=lambda x: {"front": 0, "": 1, "side": 2}.get(x.get("type", ""), 1)
     )
 
     for img in sorted_images:
@@ -26,15 +28,20 @@ async def download_main_image(images: list[dict]) -> str:
             continue
         try:
             async with httpx.AsyncClient(timeout=30, follow_redirects=True) as client:
-                response = await client.get(url, headers={
-                    "User-Agent": "Mozilla/5.0 (compatible; EC3DBridge/1.0)"
-                })
+                response = await request_with_retry(
+                    client,
+                    "GET",
+                    url,
+                    headers={"User-Agent": "Mozilla/5.0 (compatible; EC3DBridge/1.0)"},
+                )
             if response.status_code != 200:
                 continue
 
             image = Image.open(BytesIO(response.content)).convert("RGB")
             if image.width < 400 or image.height < 400:
-                logger.warning(f"画像が小さすぎるためスキップ: {url} ({image.width}x{image.height})")
+                logger.warning(
+                    f"画像が小さすぎるためスキップ: {url} ({image.width}x{image.height})"
+                )
                 continue
 
             save_path = f"output/{uuid.uuid4()}_input.jpg"

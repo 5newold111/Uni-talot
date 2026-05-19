@@ -30,7 +30,7 @@ flowchart LR
 
 ## クイックスタート
 
-### 1. バックエンド
+### 1. バックエンド (ローカル実行)
 
 ```bash
 cd backend
@@ -39,6 +39,15 @@ pip install -r requirements.txt
 python -m playwright install chromium
 uvicorn main:app --host 0.0.0.0 --port 3000 --reload
 ```
+
+### 1-alt. バックエンド (Docker Compose)
+
+```bash
+cp backend/.env.example .env   # ルート直下の .env を Compose が読み込む
+docker compose up --build
+```
+
+Blender + Playwright Chromium を含むイメージのため初回ビルドは ~2.5GB / 数分かかります。`docker-compose.yml` は `JOB_DB_PATH=/data/jobs.db` を named volume にマウントするのでコンテナ再起動でジョブ履歴が消えません。
 
 `http://localhost:3000/health` で `{"status":"ok"}` が返れば起動成功。
 依存コンポーネント (Blender / HF or fal.ai / Homestyler) の詳細状態は `/health/detail` で確認できます。
@@ -51,8 +60,10 @@ uvicorn main:app --host 0.0.0.0 --port 3000 --reload
 
 ### 3. 使い方
 
-対応 EC サイト (ニトリ・IKEA・MUJI・Amazon JP・楽天) の商品ページを開いて拡張機能アイコンをクリック → 「この商品を3D化 → Homestylerへ」。
+対応 EC サイト (ニトリ・IKEA・MUJI・Amazon JP・楽天・ロウヤ・カインズ・大塚家具) の商品ページを開いて拡張機能アイコンをクリック → 「この商品を3D化 → Homestylerへ」。
 進捗バーが 4 ステップを表示し、完了すると Homestyler の「マイモデル」に登録されます。
+
+同じ画像で再実行した場合、SHA-256 ハッシュをキーとした GLB キャッシュ (`output/<hash>_raw.glb`) がヒットし、Tripo API は呼ばれません (クレジット節約)。
 
 ## 設定 (`.env`)
 
@@ -62,6 +73,8 @@ uvicorn main:app --host 0.0.0.0 --port 3000 --reload
 | `HOMESTYLER_EMAIL` / `HOMESTYLER_PASSWORD` | Homestyler ログイン認証情報 |
 | `BLENDER_PATH` | Blender 実行ファイルへの絶対パス (default: `blender`) |
 | `PORT` | サーバーポート (default: `3000`) |
+| `JOB_DB_PATH` | SQLite ジョブDBのパス (default: `jobs.db`) |
+| `HOMESTYLER_MAX_CONCURRENCY` | Playwright 同時起動上限 (default: `1`) |
 
 ## セキュリティ: CORS
 
@@ -80,6 +93,7 @@ uvicorn main:app --host 0.0.0.0 --port 3000 --reload
 | `GET` | `/health/detail` | Blender / モデルプロバイダー / Homestyler の設定状態を返す |
 | `POST` | `/api/process` | ジョブを作成し `{job_id}` を 202 で返す |
 | `GET` | `/api/status/{job_id}` | ジョブの進捗・結果・エラーを返す |
+| `GET` | `/api/jobs?limit=N` | 直近のジョブ一覧を created_at 降順で返す (1≤N≤500) |
 
 ### `POST /api/process` リクエスト例
 
@@ -120,18 +134,27 @@ uvicorn main:app --host 0.0.0.0 --port 3000 --reload
 ### テスト
 
 ```bash
-# バックエンド (pytest, 23テスト)
+# バックエンド (pytest, 52テスト)
 cd backend
 pip install -r requirements-dev.txt
 pytest tests/ -v
 
-# 拡張機能 (node --test, 17テスト)
+# 拡張機能 (node --test, 20テスト)
 cd extension
 npm install
 npm test
 ```
 
 CI (GitHub Actions) は PR ごとに上記を自動実行します。
+
+### コードスタイル (pre-commit)
+
+```bash
+pip install pre-commit
+pre-commit install
+```
+
+`.pre-commit-config.yaml` で ruff (Python lint+format)、prettier (JS/JSON/HTML/MD)、`detect-private-key` などのフックが有効になります。コミット時に自動チェック+整形されます。
 
 ### サイト追加 / セレクター修正
 
@@ -152,7 +175,8 @@ backend/
     model_generator.py          # TRELLIS / Tripo
     scale_correction.py         # Blender CLI 呼び出し
     homestyler_bot.py           # Playwright
-    job_manager.py              # インメモリ Job ストア
+    job_manager.py              # SQLite Job ストア
+    http_retry.py               # httpx リトライ + 指数バックオフ
     health_check.py             # /health/detail
     cleanup.py                  # output/ 古ファイル削除
   scripts/scale_model.py        # Blender ヘッドレススクリプト

@@ -50,7 +50,8 @@ function extractProductData() {
   const materialText = Array.from(materialEls).map(getText).join(" ");
   data.materials = parseMaterials(materialText);
 
-  data.colors = parseColors(dimensionText + " " + materialText);
+  // カラーは商品名にだけ含まれるケースも多い (例: "ローソファ グレー")
+  data.colors = parseColors(data.product_name + " " + dimensionText + " " + materialText);
 
   return data;
 }

@@ -1,6 +1,7 @@
 """
 output/ ディレクトリの古いファイルを定期的に削除するユーティリティ。
 """
+
 import logging
 import os
 import time

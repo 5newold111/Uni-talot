@@ -1,6 +1,6 @@
 import os
 import time
-import pytest
+
 from services.cleanup import cleanup_output
 
 

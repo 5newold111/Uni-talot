@@ -1,12 +1,14 @@
-import os
 import logging
+import os
 from contextlib import asynccontextmanager
+
+from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from dotenv import load_dotenv
+
 from routers.process import router as process_router
-from services.health_check import collect_health
 from services.cleanup import cleanup_output
+from services.health_check import collect_health
 
 load_dotenv()
 
@@ -15,10 +17,7 @@ os.makedirs("logs", exist_ok=True)
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(message)s",
-    handlers=[
-        logging.FileHandler("logs/app.log"),
-        logging.StreamHandler()
-    ]
+    handlers=[logging.FileHandler("logs/app.log"), logging.StreamHandler()],
 )
 
 

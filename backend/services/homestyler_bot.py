@@ -1,7 +1,10 @@
-import os
+import asyncio
 import logging
-from playwright.async_api import async_playwright, TimeoutError as PlaywrightTimeout
+import os
+
 from dotenv import load_dotenv
+from playwright.async_api import TimeoutError as PlaywrightTimeout
+from playwright.async_api import async_playwright
 
 load_dotenv()
 logger = logging.getLogger(__name__)
@@ -9,24 +12,25 @@ logger = logging.getLogger(__name__)
 EMAIL = os.getenv("HOMESTYLER_EMAIL", "")
 PASSWORD = os.getenv("HOMESTYLER_PASSWORD", "")
 
+# 各呼び出しが Chromium プロセスを起動するため、並列実行するとメモリと
+# Homestyler 側のレート制限の両方で問題が起こる。Semaphore で直列化する。
+_UPLOAD_SEMAPHORE = asyncio.Semaphore(int(os.getenv("HOMESTYLER_MAX_CONCURRENCY", "1")))
+
 SELECTORS = {
-    "login_button":   "text=Log in",
-    "email_input":    "input[type='email'], input[name='email'], #email",
+    "login_button": "text=Log in",
+    "email_input": "input[type='email'], input[name='email'], #email",
     "password_input": "input[type='password'], input[name='password'], #password",
-    "submit_button":  "button[type='submit'], .login-btn, text=Sign in",
-    "my_models_nav":  "text=My 3D Models, text=マイモデル, [href*='my-3d-model']",
-    "upload_button":  "text=Upload, text=アップロード, .upload-btn",
-    "file_input":     "input[type='file']",
-    "name_input":     "input[name='name'], input[placeholder*='name'], input[placeholder*='名前']",
-    "save_button":    "text=Save, text=保存, button[type='submit']",
+    "submit_button": "button[type='submit'], .login-btn, text=Sign in",
+    "my_models_nav": "text=My 3D Models, text=マイモデル, [href*='my-3d-model']",
+    "upload_button": "text=Upload, text=アップロード, .upload-btn",
+    "file_input": "input[type='file']",
+    "name_input": "input[name='name'], input[placeholder*='name'], input[placeholder*='名前']",
+    "save_button": "text=Save, text=保存, button[type='submit']",
 }
 
 
 async def upload_to_homestyler(
-    glb_path: str,
-    product_name: str,
-    dimensions: dict,
-    category: str = "家具"
+    glb_path: str, product_name: str, dimensions: dict, category: str = "家具"
 ):
     """
     Playwright を使って Homestyler に GLB をアップロードする。
@@ -41,14 +45,9 @@ async def upload_to_homestyler(
 
     os.makedirs("logs", exist_ok=True)
 
-    async with async_playwright() as p:
-        browser = await p.chromium.launch(
-            headless=True,
-            slow_mo=500
-        )
-        context = await browser.new_context(
-            viewport={"width": 1280, "height": 800}
-        )
+    async with _UPLOAD_SEMAPHORE, async_playwright() as p:
+        browser = await p.chromium.launch(headless=True, slow_mo=500)
+        context = await browser.new_context(viewport={"width": 1280, "height": 800})
         page = await context.new_page()
 
         try:
@@ -63,7 +62,9 @@ async def upload_to_homestyler(
 
             email_field = await _find_element(page, SELECTORS["email_input"])
             if not email_field:
-                raise RuntimeError("メール入力フィールドが見つかりません。セレクターを確認してください")
+                raise RuntimeError(
+                    "メール入力フィールドが見つかりません。セレクターを確認してください"
+                )
             await email_field.fill(EMAIL)
 
             password_field = await _find_element(page, SELECTORS["password_input"])
@@ -105,10 +106,10 @@ async def upload_to_homestyler(
             if name_field:
                 await name_field.fill(product_name)
 
-            for field_name, key, cm_value in [
-                ("width",  "width_cm",  dimensions.get("width_cm",  0)),
-                ("depth",  "depth_cm",  dimensions.get("depth_cm",  0)),
-                ("height", "height_cm", dimensions.get("height_cm", 0)),
+            for field_name, cm_value in [
+                ("width", dimensions.get("width_cm", 0)),
+                ("depth", dimensions.get("depth_cm", 0)),
+                ("height", dimensions.get("height_cm", 0)),
             ]:
                 field = page.locator(
                     f"input[name='{field_name}'], input[placeholder*='{field_name}']"
@@ -134,7 +135,7 @@ async def upload_to_homestyler(
                 logger.error(f"エラー発生。スクリーンショット保存: {screenshot_path}")
             except Exception:
                 logger.error("スクリーンショットの保存にも失敗しました")
-            raise RuntimeError(f"Homestyler操作エラー: {str(e)}")
+            raise RuntimeError(f"Homestyler操作エラー: {str(e)}") from e
 
         finally:
             await browser.close()

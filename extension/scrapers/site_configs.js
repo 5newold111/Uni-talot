@@ -44,6 +44,30 @@ const SITE_CONFIGS = {
     material:    "table, .spec, .item_spec",
   },
 
+  "low-ya.com": {
+    name:        "h1.product-name, h1.item-title, h1",
+    images:      ".product-gallery img, .item-image-main img, [class*='product-image'] img",
+    description: ".product-description, .item-description, .item-text",
+    dimensions:  ".product-spec td, .item-spec td, .spec-table td",
+    material:    ".product-spec, .item-spec, .spec-table",
+  },
+
+  "cainz.com": {
+    name:        "h1.product-name, .product-title h1, h1",
+    images:      ".product-main-image img, .product-images img, .item-photo img",
+    description: ".product-description, .product-detail-text",
+    dimensions:  ".product-spec td, .spec-table td, .product-detail-table td",
+    material:    ".product-spec, .spec-table, .product-detail-table",
+  },
+
+  "otsuka-kagu.co.jp": {
+    name:        "h1.item-name, .product-title, h1",
+    images:      ".item-main-image img, .product-photo img, .gallery-main img",
+    description: ".item-description, .product-detail",
+    dimensions:  ".item-spec td, .spec-list td, table.spec td",
+    material:    ".item-spec, .spec-list, table.spec",
+  },
+
   "default": {
     name:        "h1, [itemprop='name']",
     images:      "[itemprop='image'] img, .product-image img, main img",

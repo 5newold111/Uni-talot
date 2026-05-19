@@ -10,6 +10,9 @@
     "https://*.muji.com/*",
     "https://*.amazon.co.jp/*",
     "https://*.rakuten.co.jp/*",
+    "https://*.low-ya.com/*",
+    "https://*.cainz.com/*",
+    "https://*.otsuka-kagu.co.jp/*",
     "http://localhost:3000/*"
   ],
   "action": {
@@ -32,7 +35,10 @@
         "https://*.ikea.com/*",
         "https://*.muji.com/*",
         "https://*.amazon.co.jp/*",
-        "https://*.rakuten.co.jp/*"
+        "https://*.rakuten.co.jp/*",
+        "https://*.low-ya.com/*",
+        "https://*.cainz.com/*",
+        "https://*.otsuka-kagu.co.jp/*"
       ],
       "js": ["scrapers/site_configs.js", "content_scripts/scraper.js"],
       "run_at": "document_idle"

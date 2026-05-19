@@ -44,6 +44,12 @@ test("getSiteConfig matches subdomain hosts", () => {
   assert.equal(call("getSiteConfig", "www.amazon.co.jp").site, "amazon.co.jp");
 });
 
+test("getSiteConfig matches new sites (low-ya, cainz, otsuka-kagu)", () => {
+  assert.equal(call("getSiteConfig", "www.low-ya.com").site, "low-ya.com");
+  assert.equal(call("getSiteConfig", "www.cainz.com").site, "cainz.com");
+  assert.equal(call("getSiteConfig", "www.otsuka-kagu.co.jp").site, "otsuka-kagu.co.jp");
+});
+
 test("getSiteConfig falls back to default for unknown host", () => {
   const r = call("getSiteConfig", "unknown-store.example");
   assert.equal(r.site, "unknown");

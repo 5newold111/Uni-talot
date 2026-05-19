@@ -67,3 +67,18 @@ test("category default is 家具", () => {
   const data = loadFixture("nitori.html", "www.nitori-net.jp");
   assert.equal(data.category, "家具");
 });
+
+test("low-ya.com fixture: extracts dimensions and materials", () => {
+  const data = loadFixture("lowya.html", "www.low-ya.com");
+  assert.equal(data.site, "low-ya.com");
+  assert.equal(data.product_name, "ローソファ オットマン付 グレー");
+  assert.deepEqual(data.dimensions, { width_cm: 180, depth_cm: 85, height_cm: 70 });
+  assert.ok(data.materials.includes("ファブリック"));
+  assert.ok(data.materials.includes("スチール"));
+  assert.ok(data.colors.includes("グレー"));
+});
+
+test("low-ya.com matches subdomain", () => {
+  const data = loadFixture("lowya.html", "shop.low-ya.com");
+  assert.equal(data.site, "low-ya.com");
+});

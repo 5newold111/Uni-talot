@@ -1,9 +1,11 @@
 """
 依存コンポーネントの状態を検査するヘルスチェック。
 """
+
 import os
 import shutil
 import subprocess
+
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -15,9 +17,7 @@ def _check_blender() -> dict:
     if not path:
         return {"ok": False, "detail": f"Blender が見つかりません (path={blender})"}
     try:
-        result = subprocess.run(
-            [path, "--version"], capture_output=True, text=True, timeout=10
-        )
+        result = subprocess.run([path, "--version"], capture_output=True, text=True, timeout=10)
         version = result.stdout.strip().split("\n", 1)[0] if result.stdout else "unknown"
         return {"ok": result.returncode == 0, "detail": version, "path": path}
     except Exception as e:

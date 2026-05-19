@@ -1,0 +1,23 @@
+services:
+  backend:
+    build:
+      context: ./backend
+    image: ec3d-bridge-backend
+    container_name: ec3d-bridge-backend
+    ports:
+      - "${PORT:-3000}:3000"
+    environment:
+      - FAL_API_KEY=${FAL_API_KEY}
+      - HOMESTYLER_EMAIL=${HOMESTYLER_EMAIL}
+      - HOMESTYLER_PASSWORD=${HOMESTYLER_PASSWORD}
+      - HOMESTYLER_MAX_CONCURRENCY=${HOMESTYLER_MAX_CONCURRENCY:-1}
+      - BLENDER_PATH=/usr/bin/blender
+      - JOB_DB_PATH=/data/jobs.db
+    volumes:
+      - ./backend/output:/app/output
+      - ./backend/logs:/app/logs
+      - job-data:/data
+    restart: unless-stopped
+
+volumes:
+  job-data:
