@@ -1,8 +1,11 @@
 import logging
 import os
+import shutil
 import subprocess
 
 from dotenv import load_dotenv
+
+from services.errors import ErrorCode, PipelineError
 
 load_dotenv()
 logger = logging.getLogger(__name__)
@@ -20,10 +23,18 @@ def apply_real_scale(glb_path: str, width_cm: float, depth_cm: float, height_cm:
         logger.warning("寸法情報が不完全なためスケール補正をスキップします")
         return glb_path
 
+    # Blender 存在チェック (env で指定された絶対パス or PATH 上で探す)
+    blender_exec = shutil.which(BLENDER) or (BLENDER if os.path.isfile(BLENDER) else None)
+    if not blender_exec:
+        raise PipelineError(
+            ErrorCode.BLENDER_NOT_FOUND,
+            f"Blender 実行ファイルが見つかりません (BLENDER_PATH={BLENDER})",
+        )
+
     output_path = glb_path.replace("_raw.glb", "_scaled.glb")
 
     cmd = [
-        BLENDER,
+        blender_exec,
         "--background",
         "--python",
         os.path.abspath(SCRIPT),
@@ -45,13 +56,17 @@ def apply_real_scale(glb_path: str, width_cm: float, depth_cm: float, height_cm:
         logger.warning(f"[Blender stderr]\n{result.stderr[-1000:]}")
 
     if result.returncode != 0:
-        raise RuntimeError(
+        raise PipelineError(
+            ErrorCode.SCALE_FAILED,
             f"Blenderスクリプトがエラーで終了しました (code={result.returncode})\n"
-            f"stderr末尾: {result.stderr[-500:]}"
+            f"stderr末尾: {result.stderr[-500:]}",
         )
 
     if not os.path.exists(output_path):
-        raise RuntimeError(f"スケール補正後のファイルが生成されませんでした: {output_path}")
+        raise PipelineError(
+            ErrorCode.SCALE_FAILED,
+            f"スケール補正後のファイルが生成されませんでした: {output_path}",
+        )
 
     logger.info(f"スケール補正完了: {output_path}")
     return output_path

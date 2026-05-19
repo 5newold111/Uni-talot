@@ -36,6 +36,7 @@ class Job:
     message: str = "キュー登録済み"
     result: dict | None = None
     error: str | None = None
+    error_code: str | None = None
     created_at: float = field(default_factory=time.time)
     updated_at: float = field(default_factory=time.time)
 
@@ -54,6 +55,7 @@ CREATE TABLE IF NOT EXISTS jobs (
     message TEXT NOT NULL,
     result TEXT,
     error TEXT,
+    error_code TEXT,
     created_at REAL NOT NULL,
     updated_at REAL NOT NULL
 );
@@ -65,6 +67,8 @@ CREATE INDEX IF NOT EXISTS idx_jobs_created_at ON jobs(created_at);
 def _row_to_job(row: sqlite3.Row) -> Job:
     d = dict(row)
     d["result"] = json.loads(d["result"]) if d["result"] else None
+    # 旧スキーマ DB (error_code カラム無し) 互換
+    d.setdefault("error_code", None)
     return Job(**d)
 
 
@@ -79,6 +83,11 @@ class JobManager:
                 os.makedirs(parent, exist_ok=True)
         with self._conn() as c:
             c.executescript(SCHEMA)
+            # SQLite ALTER TABLE は IF NOT EXISTS をサポートしないので
+            # 既存テーブルに後付けカラムを足すマイグレーションを手動で実行
+            existing_cols = {r[1] for r in c.execute("PRAGMA table_info(jobs)")}
+            if "error_code" not in existing_cols:
+                c.execute("ALTER TABLE jobs ADD COLUMN error_code TEXT")
 
     def _conn(self) -> sqlite3.Connection:
         c = sqlite3.connect(self._db_path)
@@ -94,8 +103,8 @@ class JobManager:
             c.execute(
                 """INSERT INTO jobs
                    (id, product_name, status, step, step_index, total_steps,
-                    message, result, error, created_at, updated_at)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                    message, result, error, error_code, created_at, updated_at)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (
                     job.id,
                     job.product_name,
@@ -104,6 +113,7 @@ class JobManager:
                     job.step_index,
                     job.total_steps,
                     job.message,
+                    None,
                     None,
                     None,
                     job.created_at,
@@ -140,10 +150,13 @@ class JobManager:
         message: str | None = None,
         result: dict | None = None,
         error: str | None = None,
+        error_code: str | None = None,
     ) -> None:
-        await asyncio.to_thread(self._update_sync, job_id, status, step, message, result, error)
+        await asyncio.to_thread(
+            self._update_sync, job_id, status, step, message, result, error, error_code
+        )
 
-    def _update_sync(self, job_id, status, step, message, result, error) -> None:
+    def _update_sync(self, job_id, status, step, message, result, error, error_code) -> None:
         updates: dict = {"updated_at": time.time()}
         if status is not None:
             updates["status"] = status
@@ -157,6 +170,8 @@ class JobManager:
             updates["result"] = json.dumps(result)
         if error is not None:
             updates["error"] = error
+        if error_code is not None:
+            updates["error_code"] = error_code
         set_clause = ", ".join(f"{k} = ?" for k in updates.keys())
         with self._conn() as c:
             c.execute(

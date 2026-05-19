@@ -36,7 +36,7 @@ def test_process_rejects_empty_images(client):
         "/api/process",
         json={
             "product_name": "x",
-            "source_url": "http://x",
+            "source_url": "https://example.com/p",
             "site": "x",
             "dimensions": {},
             "colors": [],
@@ -44,7 +44,8 @@ def test_process_rejects_empty_images(client):
             "images": [],
         },
     )
-    assert r.status_code == 400
+    # Pydantic (images min_length=1) → 422
+    assert r.status_code == 422
 
 
 def test_status_returns_404_for_unknown_id(client):

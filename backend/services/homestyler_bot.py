@@ -6,6 +6,8 @@ from dotenv import load_dotenv
 from playwright.async_api import TimeoutError as PlaywrightTimeout
 from playwright.async_api import async_playwright
 
+from services.errors import ErrorCode, PipelineError
+
 load_dotenv()
 logger = logging.getLogger(__name__)
 
@@ -37,11 +39,17 @@ async def upload_to_homestyler(
     headless=False にすると操作をリアルタイムで目視確認できる（デバッグ時に推奨）。
     """
     if not EMAIL or not PASSWORD:
-        raise RuntimeError("HOMESTYLER_EMAIL または HOMESTYLER_PASSWORD が設定されていません")
+        raise PipelineError(
+            ErrorCode.HOMESTYLER_AUTH_FAILED,
+            "HOMESTYLER_EMAIL または HOMESTYLER_PASSWORD が設定されていません",
+        )
 
     glb_abs_path = os.path.abspath(glb_path)
     if not os.path.exists(glb_abs_path):
-        raise RuntimeError(f"アップロードするGLBファイルが存在しません: {glb_abs_path}")
+        raise PipelineError(
+            ErrorCode.UPLOAD_FAILED,
+            f"アップロードするGLBファイルが存在しません: {glb_abs_path}",
+        )
 
     os.makedirs("logs", exist_ok=True)
 
@@ -62,14 +70,17 @@ async def upload_to_homestyler(
 
             email_field = await _find_element(page, SELECTORS["email_input"])
             if not email_field:
-                raise RuntimeError(
-                    "メール入力フィールドが見つかりません。セレクターを確認してください"
+                raise PipelineError(
+                    ErrorCode.HOMESTYLER_UI_CHANGED,
+                    "メール入力フィールドが見つかりません。セレクターを確認してください",
                 )
             await email_field.fill(EMAIL)
 
             password_field = await _find_element(page, SELECTORS["password_input"])
             if not password_field:
-                raise RuntimeError("パスワード入力フィールドが見つかりません")
+                raise PipelineError(
+                    ErrorCode.HOMESTYLER_UI_CHANGED, "パスワード入力フィールドが見つかりません"
+                )
             await password_field.fill(PASSWORD)
 
             submit = await _find_element(page, SELECTORS["submit_button"])
@@ -93,7 +104,9 @@ async def upload_to_homestyler(
 
             upload_btn = await _find_element(page, SELECTORS["upload_button"])
             if not upload_btn:
-                raise RuntimeError("アップロードボタンが見つかりません")
+                raise PipelineError(
+                    ErrorCode.HOMESTYLER_UI_CHANGED, "アップロードボタンが見つかりません"
+                )
             await upload_btn.click()
             await page.wait_for_timeout(2000)
 
@@ -127,6 +140,14 @@ async def upload_to_homestyler(
             await page.wait_for_timeout(3000)
             logger.info(f"Homestylerへのアップロード完了: {product_name}")
 
+        except PipelineError:
+            # 構造化エラーはそのまま伝播
+            safe_name = "".join(c if c.isalnum() else "_" for c in product_name[:20])
+            try:
+                await page.screenshot(path=f"logs/error_{safe_name}.png")
+            except Exception:
+                pass
+            raise
         except Exception as e:
             safe_name = "".join(c if c.isalnum() else "_" for c in product_name[:20])
             screenshot_path = f"logs/error_{safe_name}.png"
@@ -135,7 +156,9 @@ async def upload_to_homestyler(
                 logger.error(f"エラー発生。スクリーンショット保存: {screenshot_path}")
             except Exception:
                 logger.error("スクリーンショットの保存にも失敗しました")
-            raise RuntimeError(f"Homestyler操作エラー: {str(e)}") from e
+            raise PipelineError(
+                ErrorCode.UPLOAD_FAILED, f"Homestyler操作エラー: {str(e)}", original=e
+            ) from e
 
         finally:
             await browser.close()

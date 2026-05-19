@@ -4,68 +4,137 @@
   <meta charset="UTF-8">
   <style>
     body {
-      width: 320px;
+      width: 380px;
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
       margin: 0;
-      padding: 16px;
+      padding: 14px;
       background: #fafafa;
       color: #1a1a1a;
     }
-    h1 { font-size: 16px; margin: 0 0 12px; color: #333; }
-    button {
-      width: 100%;
-      padding: 10px;
-      background: #2c5364;
-      color: white;
-      border: none;
-      border-radius: 6px;
-      font-size: 14px;
-      cursor: pointer;
+    h1 { font-size: 16px; margin: 0 0 10px; color: #333; }
+
+    /* タブ */
+    .tabs { display: flex; gap: 0; border-bottom: 1px solid #d6dbe1; margin-bottom: 12px; }
+    .tab {
+      flex: 1; padding: 8px 0; text-align: center; cursor: pointer;
+      font-size: 13px; color: #555; border-bottom: 2px solid transparent;
+      background: none; border-top: none; border-left: none; border-right: none;
     }
-    button:disabled { background: #ccc; cursor: not-allowed; }
-    #status {
-      margin-top: 12px;
-      font-size: 13px;
-      color: #555;
-      white-space: pre-wrap;
-      min-height: 40px;
-      line-height: 1.6;
+    .tab.active { color: #2c5364; border-bottom-color: #2c5364; font-weight: 600; }
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+
+    /* ボタン */
+    button.primary {
+      width: 100%; padding: 10px; background: #2c5364; color: white;
+      border: none; border-radius: 6px; font-size: 14px; cursor: pointer;
     }
-    #status.error { color: #c0392b; }
-    #status.success { color: #27ae60; }
+    button.primary:disabled { background: #ccc; cursor: not-allowed; }
+    button.link {
+      background: none; border: none; color: #2c5364;
+      cursor: pointer; padding: 0; font-size: 12px; text-decoration: underline;
+    }
+
+    /* テキストエリア */
+    textarea {
+      width: 100%; box-sizing: border-box; min-height: 100px; padding: 8px;
+      font-family: monospace; font-size: 12px; border: 1px solid #c4cad2;
+      border-radius: 4px; resize: vertical;
+    }
+
+    /* ステータス */
+    #status, #bulkStatus {
+      margin-top: 12px; font-size: 13px; color: #555;
+      white-space: pre-wrap; min-height: 24px; line-height: 1.6;
+    }
+    .error { color: #c0392b; }
+    .success { color: #27ae60; }
     .product-info {
-      margin-top: 8px;
-      padding: 8px;
-      background: #eef2f7;
-      border-radius: 4px;
-      font-size: 12px;
-      display: none;
+      margin-top: 8px; padding: 8px; background: #eef2f7;
+      border-radius: 4px; font-size: 12px; display: none;
     }
+    .guidance {
+      margin-top: 6px; padding: 6px 8px; background: #fff4e0;
+      border-left: 3px solid #e8a13a; font-size: 11px; color: #5a4400;
+    }
+
+    /* 進捗 */
     .progress {
-      margin-top: 10px;
-      height: 6px;
-      background: #e6e9ee;
-      border-radius: 3px;
-      overflow: hidden;
-      display: none;
+      margin-top: 10px; height: 6px; background: #e6e9ee;
+      border-radius: 3px; overflow: hidden; display: none;
     }
     .progress.visible { display: block; }
     .progress > .bar {
-      height: 100%;
-      width: 0%;
-      background: #2c5364;
+      height: 100%; width: 0%; background: #2c5364;
       transition: width 0.35s ease-out;
     }
     .progress.success > .bar { background: #27ae60; }
     .progress.error > .bar { background: #c0392b; }
+
+    /* 履歴リスト */
+    .history-list { list-style: none; padding: 0; margin: 0; max-height: 360px; overflow-y: auto; }
+    .history-item {
+      padding: 8px; border-bottom: 1px solid #e6e9ee;
+      font-size: 12px; cursor: pointer;
+    }
+    .history-item:hover { background: #f0f3f7; }
+    .history-item .name { font-weight: 600; color: #1a1a1a; }
+    .history-item .meta { color: #888; font-size: 11px; margin-top: 2px; }
+    .history-item .badge {
+      display: inline-block; padding: 1px 6px; border-radius: 8px;
+      font-size: 10px; margin-right: 4px;
+    }
+    .badge.success { background: #d4eddb; color: #1d6e35; }
+    .badge.error { background: #f5cfcf; color: #8b2424; }
+    .badge.running { background: #d6e8f5; color: #1f5b86; }
+    .badge.queued { background: #e8e8e8; color: #444; }
+
+    /* 3Dプレビュー */
+    .preview-wrap { margin-top: 10px; height: 240px; background: #1a1a1a; border-radius: 6px; }
+    model-viewer { width: 100%; height: 100%; background: transparent; }
+
+    .small-muted { font-size: 11px; color: #888; margin-top: 6px; }
   </style>
 </head>
 <body>
   <h1>EC3D-Bridge</h1>
-  <button id="startBtn">この商品を3D化 → Homestylerへ</button>
-  <div id="status">商品ページを開いてボタンを押してください</div>
-  <div class="progress" id="progress"><div class="bar" id="progressBar"></div></div>
-  <div class="product-info" id="productInfo"></div>
+
+  <div class="tabs">
+    <button class="tab active" data-tab="single">単発</button>
+    <button class="tab" data-tab="bulk">一括</button>
+    <button class="tab" data-tab="history">履歴</button>
+  </div>
+
+  <!-- 単発 -->
+  <div class="tab-panel active" data-tab-panel="single">
+    <button id="startBtn" class="primary">この商品を3D化 → Homestylerへ</button>
+    <div id="status">商品ページを開いてボタンを押してください</div>
+    <div class="progress" id="progress"><div class="bar" id="progressBar"></div></div>
+    <div id="guidance" class="guidance" style="display:none"></div>
+    <div class="product-info" id="productInfo"></div>
+    <div class="preview-wrap" id="previewWrap" style="display:none">
+      <model-viewer id="modelViewer" auto-rotate camera-controls></model-viewer>
+    </div>
+  </div>
+
+  <!-- 一括 -->
+  <div class="tab-panel" data-tab-panel="bulk">
+    <p class="small-muted">対応ECサイトの商品URLを1行ずつ貼り付けてください。順番にバックグラウンドタブを開いてスクレイプ → バックエンドに投入します。</p>
+    <textarea id="bulkUrls" placeholder="https://www.nitori-net.jp/ec/product/xxx/&#10;https://www.ikea.com/jp/ja/p/xxx/&#10;..."></textarea>
+    <button id="bulkStartBtn" class="primary" style="margin-top:8px">一括投入を開始</button>
+    <div id="bulkStatus"></div>
+  </div>
+
+  <!-- 履歴 -->
+  <div class="tab-panel" data-tab-panel="history">
+    <button id="refreshHistoryBtn" class="link">再読込</button>
+    <ul class="history-list" id="historyList">
+      <li class="small-muted">読み込み中...</li>
+    </ul>
+  </div>
+
+  <!-- 3Dプレビュー: Google の model-viewer (拡張機能内バンドル想定) -->
+  <script type="module" src="model-viewer.min.js"></script>
   <script src="popup.js"></script>
 </body>
 </html>

@@ -79,12 +79,18 @@ async def test_different_image_different_cache_key(tmp_path):
 
 
 async def test_missing_api_key_raises(fake_image, monkeypatch):
+    from services.errors import ErrorCode, PipelineError
+
     monkeypatch.setattr(model_generator, "FAL_KEY", "")
-    with pytest.raises(RuntimeError, match="FAL_API_KEY"):
+    with pytest.raises(PipelineError) as exc:
         await generate_3d_model(fake_image)
+    assert exc.value.code == ErrorCode.MODEL_API_KEY_MISSING
 
 
 async def test_placeholder_api_key_raises(fake_image, monkeypatch):
+    from services.errors import ErrorCode, PipelineError
+
     monkeypatch.setattr(model_generator, "FAL_KEY", "your_fal_api_key_here")
-    with pytest.raises(RuntimeError, match="FAL_API_KEY"):
+    with pytest.raises(PipelineError) as exc:
         await generate_3d_model(fake_image)
+    assert exc.value.code == ErrorCode.MODEL_API_KEY_MISSING

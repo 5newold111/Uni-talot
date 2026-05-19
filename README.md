@@ -2,6 +2,15 @@
 
 ECサイトの商品ページから家具情報を抽出し、自動で 3D モデル化して Homestyler に登録する Chrome 拡張機能 + バックエンドです。
 
+<img src="docs/popup_screenshot.png" alt="EC3D-Bridge popup" width="400">
+
+機能ハイライト:
+- **単発投入** — 開いている商品ページからワンクリックで 3D 化
+- **一括投入** — 複数URLを行区切り入力し順次バックグラウンド処理
+- **ジョブ履歴** — 過去ジョブを popup から確認
+- **3D プレビュー** — 完了時に `<model-viewer>` で表示
+- **構造化エラー** — 失敗時に対処ガイドを画面に表示
+
 ## アーキテクチャ
 
 ```mermaid
@@ -75,6 +84,7 @@ Blender + Playwright Chromium を含むイメージのため初回ビルドは ~
 | `PORT` | サーバーポート (default: `3000`) |
 | `JOB_DB_PATH` | SQLite ジョブDBのパス (default: `jobs.db`) |
 | `HOMESTYLER_MAX_CONCURRENCY` | Playwright 同時起動上限 (default: `1`) |
+| `EC3D_API_KEY` | 設定すると `X-API-Key` ヘッダ必須化 (空なら認証無効) |
 
 ## セキュリティ: CORS
 
@@ -94,6 +104,10 @@ Blender + Playwright Chromium を含むイメージのため初回ビルドは ~
 | `POST` | `/api/process` | ジョブを作成し `{job_id}` を 202 で返す |
 | `GET` | `/api/status/{job_id}` | ジョブの進捗・結果・エラーを返す |
 | `GET` | `/api/jobs?limit=N` | 直近のジョブ一覧を created_at 降順で返す (1≤N≤500) |
+| `GET` | `/api/errors/guidance` | error_code → ユーザー向け対処メッセージの辞書 |
+| `GET` | `/output/{filename}` | 生成済み GLB の静的配信 (3D プレビュー用) |
+
+OpenAPI 仕様は [`docs/openapi.json`](./docs/openapi.json) にスナップショット済み (CI でドリフトを検出)。バックエンド起動中は Swagger UI が `http://localhost:3000/docs` で参照できます。
 
 ### `POST /api/process` リクエスト例
 
@@ -134,7 +148,7 @@ Blender + Playwright Chromium を含むイメージのため初回ビルドは ~
 ### テスト
 
 ```bash
-# バックエンド (pytest, 52テスト)
+# バックエンド (pytest, 68テスト)
 cd backend
 pip install -r requirements-dev.txt
 pytest tests/ -v
@@ -144,6 +158,18 @@ cd extension
 npm install
 npm test
 ```
+
+### OpenAPI スキーマ更新
+
+API を変更したら `docs/openapi.json` を再生成してコミット:
+
+```bash
+cd backend
+python scripts/dump_openapi.py
+git add ../docs/openapi.json
+```
+
+CI の `openapi-snapshot` ジョブで差分を検出します。
 
 CI (GitHub Actions) は PR ごとに上記を自動実行します。
 
@@ -246,3 +272,9 @@ extension/
 | `商品名が取得できません` | 対応外サイト or セレクター崩れ | `site_configs.js` の該当サイトを DevTools で確認・修正 |
 
 `/health/detail` を確認すると、どの依存が落ちているかを一目で把握できます。
+
+## ドキュメント
+
+- [Architecture Decision Records (ADR)](./docs/adr/README.md) — 意思決定の記録
+- [CHANGELOG.md](./CHANGELOG.md) — 変更履歴 (Semantic Versioning)
+- [docs/openapi.json](./docs/openapi.json) — OpenAPI 仕様 (CI でドリフト検出)

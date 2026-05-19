@@ -1,6 +1,9 @@
 import subprocess
 from unittest.mock import patch
 
+import pytest
+
+from services.errors import ErrorCode, PipelineError
 from services.scale_correction import apply_real_scale
 
 
@@ -16,23 +19,35 @@ def test_skips_when_any_dimension_is_zero(tmp_path):
     assert result == str(glb)
 
 
+def test_raises_when_blender_not_found(tmp_path):
+    raw = tmp_path / "abc_raw.glb"
+    raw.write_bytes(b"GLB")
+    with patch("services.scale_correction.shutil.which", return_value=None):
+        with patch("services.scale_correction.os.path.isfile", return_value=False):
+            with pytest.raises(PipelineError) as exc:
+                apply_real_scale(str(raw), 80, 40, 75)
+    assert exc.value.code == ErrorCode.BLENDER_NOT_FOUND
+
+
 def test_invokes_blender_with_correct_args(tmp_path):
     raw = tmp_path / "abc_raw.glb"
     raw.write_bytes(b"GLB")
     expected_out = str(raw).replace("_raw.glb", "_scaled.glb")
 
     def fake_run(cmd, **kwargs):
-        # Blender が成功した想定で出力ファイルを作る
         with open(expected_out, "wb") as f:
             f.write(b"SCALED")
         return subprocess.CompletedProcess(cmd, 0, stdout="ok", stderr="")
 
-    with patch("services.scale_correction.subprocess.run", side_effect=fake_run) as m:
+    with (
+        patch("services.scale_correction.shutil.which", return_value="/fake/blender"),
+        patch("services.scale_correction.subprocess.run", side_effect=fake_run) as m,
+    ):
         out = apply_real_scale(str(raw), 80.0, 40.0, 75.0)
 
     assert out == expected_out
     cmd = m.call_args.args[0]
-    # コマンド構造: blender --background --python <script> -- <in> <out> 80 40 75
+    assert cmd[0] == "/fake/blender"
     assert "--background" in cmd
     assert "--python" in cmd
     assert "--" in cmd
@@ -50,10 +65,11 @@ def test_raises_when_blender_fails(tmp_path):
     def fake_run(cmd, **kwargs):
         return subprocess.CompletedProcess(cmd, 1, stdout="", stderr="boom")
 
-    with patch("services.scale_correction.subprocess.run", side_effect=fake_run):
-        try:
+    with (
+        patch("services.scale_correction.shutil.which", return_value="/fake/blender"),
+        patch("services.scale_correction.subprocess.run", side_effect=fake_run),
+    ):
+        with pytest.raises(PipelineError) as exc:
             apply_real_scale(str(raw), 80, 40, 75)
-        except RuntimeError as e:
-            assert "Blender" in str(e)
-            return
-        raise AssertionError("RuntimeError が発生するはず")
+    assert exc.value.code == ErrorCode.SCALE_FAILED
+    assert "Blender" in exc.value.message

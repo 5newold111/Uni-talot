@@ -16,6 +16,7 @@ import aiofiles
 import httpx
 from dotenv import load_dotenv
 
+from services.errors import ErrorCode, PipelineError
 from services.http_retry import request_with_retry
 
 load_dotenv()
@@ -38,7 +39,10 @@ async def generate_3d_model(image_path: str) -> str:
     os.makedirs("output", exist_ok=True)
 
     if not FAL_KEY or FAL_KEY == "your_fal_api_key_here":
-        raise RuntimeError("FAL_API_KEY が .env に設定されていません")
+        raise PipelineError(
+            ErrorCode.MODEL_API_KEY_MISSING,
+            "FAL_API_KEY が .env に設定されていません",
+        )
 
     image_hash = _file_sha256(image_path)
     save_path = f"output/{image_hash[:16]}_raw.glb"
@@ -70,17 +74,29 @@ async def generate_3d_model(image_path: str) -> str:
         )
 
     if response.status_code != 200:
-        raise RuntimeError(f"Tripo APIエラー: {response.status_code} {response.text[:300]}")
+        # 402 / 429 はクォータ / レート、それ以外は汎用失敗
+        code = (
+            ErrorCode.MODEL_QUOTA_EXCEEDED
+            if response.status_code in (402, 429)
+            else ErrorCode.MODEL_GENERATION_FAILED
+        )
+        raise PipelineError(code, f"Tripo APIエラー: {response.status_code} {response.text[:300]}")
 
     result = response.json()
     glb_url = (result.get("model_mesh") or {}).get("url", "")
     if not glb_url:
-        raise RuntimeError(f"Tripo APIから glb_url が取得できませんでした: {result}")
+        raise PipelineError(
+            ErrorCode.MODEL_GENERATION_FAILED,
+            f"Tripo APIから glb_url が取得できませんでした: {result}",
+        )
 
     async with httpx.AsyncClient(timeout=60) as client:
         glb_response = await request_with_retry(client, "GET", glb_url)
     if glb_response.status_code != 200:
-        raise RuntimeError(f"GLB ダウンロード失敗: {glb_response.status_code}")
+        raise PipelineError(
+            ErrorCode.MODEL_GENERATION_FAILED,
+            f"GLB ダウンロード失敗: {glb_response.status_code}",
+        )
 
     async with aiofiles.open(save_path, "wb") as f:
         await f.write(glb_response.content)

@@ -6,6 +6,7 @@ from io import BytesIO
 import httpx
 from PIL import Image
 
+from services.errors import ErrorCode, PipelineError
 from services.http_retry import request_with_retry
 
 logger = logging.getLogger(__name__)
@@ -53,4 +54,7 @@ async def download_main_image(images: list[dict]) -> str:
             logger.warning(f"画像ダウンロード失敗 ({url}): {e}")
             continue
 
-    raise RuntimeError("有効な商品画像が1枚もダウンロードできませんでした")
+    raise PipelineError(
+        ErrorCode.IMAGE_DOWNLOAD_FAILED,
+        "有効な商品画像が1枚もダウンロードできませんでした",
+    )

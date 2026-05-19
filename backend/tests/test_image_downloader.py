@@ -6,6 +6,7 @@ import pytest
 import respx
 from PIL import Image
 
+from services.errors import ErrorCode, PipelineError
 from services.image_downloader import download_main_image
 
 
@@ -23,13 +24,14 @@ def chdir_tmp(tmp_path, monkeypatch):
 
 
 async def test_no_images_raises():
-    with pytest.raises(RuntimeError, match="有効な商品画像"):
+    with pytest.raises(PipelineError) as exc:
         await download_main_image([])
+    assert exc.value.code == ErrorCode.IMAGE_DOWNLOAD_FAILED
 
 
 async def test_skips_non_http_urls():
     images = [{"url": "data:image/png;base64,xxx", "type": "front"}]
-    with pytest.raises(RuntimeError):
+    with pytest.raises(PipelineError):
         await download_main_image(images)
 
 
