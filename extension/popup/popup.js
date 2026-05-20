@@ -252,16 +252,33 @@ async function loadHistory() {
       historyList.innerHTML = '<li class="small-muted">まだジョブがありません</li>';
       return;
     }
-    historyList.innerHTML = jobs.map(j => `
+    historyList.innerHTML = jobs.map(j => {
+      const canCancel = j.status === "queued" || j.status === "running";
+      return `
       <li class="history-item" data-job-id="${j.id}">
         <span class="badge ${j.status}">${j.status}</span>
         <span class="name">${escapeHtml(j.product_name)}</span>
         <div class="meta">
           ${timeAgo(j.created_at)} · ステップ ${j.step_index}/${j.total_steps}
           ${j.error_code ? `· <code>${j.error_code}</code>` : ""}
+          ${canCancel ? `· <button class="link cancel-btn" data-job-id="${j.id}">キャンセル</button>` : ""}
         </div>
-      </li>
-    `).join("");
+      </li>`;
+    }).join("");
+    historyList.querySelectorAll(".cancel-btn").forEach(btn => {
+      btn.addEventListener("click", async (e) => {
+        e.stopPropagation();
+        const jid = btn.dataset.jobId;
+        btn.disabled = true;
+        try {
+          await apiFetch(`/jobs/${jid}/cancel`, { method: "POST" });
+          loadHistory();
+        } catch (err) {
+          alert(`キャンセル失敗: ${err.message}`);
+          btn.disabled = false;
+        }
+      });
+    });
   } catch (e) {
     historyList.innerHTML = `<li class="small-muted error">読み込み失敗: ${e.message}</li>`;
   }

@@ -1,8 +1,9 @@
 # EC3D-Bridge
 
 [![Tests](https://github.com/5newold111/furniture-3D-modeling-/actions/workflows/test.yml/badge.svg)](https://github.com/5newold111/furniture-3D-modeling-/actions/workflows/test.yml)
-![Coverage](https://img.shields.io/badge/coverage-83%25-brightgreen)
+![Coverage](https://img.shields.io/badge/coverage-84%25-brightgreen)
 ![Python](https://img.shields.io/badge/python-3.11+-blue)
+![Version](https://img.shields.io/badge/version-1.0.0-blue)
 
 ECサイトの商品ページから家具情報を抽出し、自動で 3D モデル化して Homestyler に登録する Chrome 拡張機能 + バックエンドです。
 
@@ -112,6 +113,7 @@ Blender + Playwright Chromium を含むイメージのため初回ビルドは ~
 | `POST` | `/api/process` | ジョブを作成し `{job_id}` を 202 で返す |
 | `GET` | `/api/status/{job_id}` | ジョブの進捗・結果・エラーを返す |
 | `GET` | `/api/jobs?limit=N` | 直近のジョブ一覧を created_at 降順で返す (1≤N≤500) |
+| `POST` | `/api/jobs/{job_id}/cancel` | 実行中ジョブにキャンセル要求を送る (次の境界で停止) |
 | `GET` | `/api/errors/guidance` | error_code → ユーザー向け対処メッセージの辞書 |
 | `GET` | `/output/{filename}` | 生成済み GLB の静的配信 (3D プレビュー用) |
 
@@ -282,6 +284,21 @@ extension/
 | `商品名が取得できません` | 対応外サイト or セレクター崩れ | `site_configs.js` の該当サイトを DevTools で確認・修正 |
 
 `/health/detail` を確認すると、どの依存が落ちているかを一目で把握できます。
+
+## 制約 / 既知の制限
+
+率直にいうと、以下は本番運用前に必ず確認/対応すべき項目です。
+
+| 項目 | 状態 | 備考 |
+|---|---|---|
+| Tripo (fal.ai) 認証情報 | 未検証 | `.env` に実 API キーを入れて 1 回成功させる必要あり |
+| Homestyler セレクター | **推測値** | 実画面で `headless=False` キャリブレーション必須 ([README 該当節](#homestyler-セレクター検証手順)) |
+| Homestyler の CAPTCHA / OAuth | 未対応 | 必要なら `storage_state` ベースのセッション保持に切替 |
+| model-viewer.min.js | **同梱はプレースホルダー** | 実プレビューを使うなら [Google's model-viewer](https://modelviewer.dev/) から `dist/model-viewer.min.js` を `extension/popup/` に配置 |
+| Job キャンセルの即時性 | ベストエフォート | ステップ境界でのみ中断する。`generate_3d_model` 中の Tripo API 呼び出しは中断不可 |
+| マルチサーバー | 非対応 | SQLite は単一マシン前提。共有が必要なら Postgres へ |
+| 大量ジョブ (>1000件/日) | 想定外 | Homestyler ボットが直列化済みで現実的な上限がある |
+| Blender のインストール | 環境依存 | Docker Compose では同梱 (\~2.5GB)。ローカル実行時は別途インストール要 |
 
 ## ドキュメント
 

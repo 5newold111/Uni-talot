@@ -45,9 +45,29 @@ class ProductData(BaseModel):
         return v
 
 
+async def _check_cancelled(job_id: str) -> bool:
+    job = await jobs.get(job_id)
+    return bool(job and job.cancel_requested)
+
+
+async def _abort_if_cancelled(job_id: str) -> bool:
+    if await _check_cancelled(job_id):
+        await jobs.update(
+            job_id,
+            status="cancelled",
+            message="ジョブはユーザーによってキャンセルされました",
+        )
+        logger.info(f"[{job_id}] cancelled by user request")
+        return True
+    return False
+
+
 async def _run_pipeline(job_id: str, data: ProductData) -> None:
-    logger.info(f"[{job_id}] 処理開始: {data.product_name}")
+    log_extra = {"job_id": job_id}
+    logger.info(f"[{job_id}] 処理開始: {data.product_name}", extra=log_extra)
     try:
+        if await _abort_if_cancelled(job_id):
+            return
         await jobs.update(
             job_id,
             status="running",
@@ -58,11 +78,15 @@ async def _run_pipeline(job_id: str, data: ProductData) -> None:
         images = [img.model_dump(mode="json") for img in data.images]
         image_path = await download_main_image(images)
 
+        if await _abort_if_cancelled(job_id):
+            return
         await jobs.update(
             job_id, step="generating_3d", message="[2/4] 3Dモデルを生成しています（30秒〜2分）..."
         )
         raw_glb_path = await generate_3d_model(image_path)
 
+        if await _abort_if_cancelled(job_id):
+            return
         w = data.dimensions.get("width_cm", 0)
         d = data.dimensions.get("depth_cm", 0)
         h = data.dimensions.get("height_cm", 0)
@@ -71,6 +95,8 @@ async def _run_pipeline(job_id: str, data: ProductData) -> None:
         )
         scaled_glb_path = await asyncio.to_thread(apply_real_scale, raw_glb_path, w, d, h)
 
+        if await _abort_if_cancelled(job_id):
+            return
         await jobs.update(
             job_id,
             step="uploading_homestyler",
@@ -93,7 +119,10 @@ async def _run_pipeline(job_id: str, data: ProductData) -> None:
         logger.info(f"[{job_id}] 完了: {data.product_name}")
 
     except PipelineError as e:
-        logger.error(f"[{job_id}] {e}")
+        logger.error(
+            f"[{job_id}] {e}",
+            extra={"job_id": job_id, "error_code": e.code.value},
+        )
         guidance = USER_GUIDANCE.get(e.code, "")
         await jobs.update(
             job_id,
@@ -103,7 +132,10 @@ async def _run_pipeline(job_id: str, data: ProductData) -> None:
             error_code=e.code.value,
         )
     except Exception as e:
-        logger.exception(f"[{job_id}] 予期しないエラー: {e}")
+        logger.exception(
+            f"[{job_id}] 予期しないエラー: {e}",
+            extra={"job_id": job_id, "error_code": ErrorCode.INTERNAL_ERROR.value},
+        )
         await jobs.update(
             job_id,
             status="error",
@@ -134,6 +166,18 @@ async def list_jobs(limit: int = 50):
         raise HTTPException(status_code=400, detail="limit は 1〜500 で指定してください")
     recent = await jobs.list_recent(limit=limit)
     return {"jobs": [j.to_dict() for j in recent], "count": len(recent)}
+
+
+@router.post("/jobs/{job_id}/cancel", status_code=202)
+async def cancel_job(job_id: str):
+    """ジョブにキャンセルフラグを立てる。実行中の場合は次のステップ境界で中断する。"""
+    job = await jobs.get(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="job_id が見つかりません")
+    if job.status in ("success", "error", "cancelled"):
+        raise HTTPException(status_code=409, detail=f"ジョブは既に終端状態です: {job.status}")
+    ok = await jobs.request_cancel(job_id)
+    return {"cancel_requested": ok, "job_id": job_id}
 
 
 @router.get("/errors/guidance")

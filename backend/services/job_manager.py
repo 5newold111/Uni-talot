@@ -37,11 +37,14 @@ class Job:
     result: dict | None = None
     error: str | None = None
     error_code: str | None = None
+    cancel_requested: int = 0  # 0/1 (SQLite に BOOLEAN がないため INTEGER)
     created_at: float = field(default_factory=time.time)
     updated_at: float = field(default_factory=time.time)
 
     def to_dict(self) -> dict:
-        return asdict(self)
+        d = asdict(self)
+        d["cancel_requested"] = bool(d["cancel_requested"])
+        return d
 
 
 SCHEMA = """
@@ -67,8 +70,10 @@ CREATE INDEX IF NOT EXISTS idx_jobs_created_at ON jobs(created_at);
 def _row_to_job(row: sqlite3.Row) -> Job:
     d = dict(row)
     d["result"] = json.loads(d["result"]) if d["result"] else None
-    # 旧スキーマ DB (error_code カラム無し) 互換
+    # 旧スキーマ DB (error_code/cancel_requested カラム無し) 互換
     d.setdefault("error_code", None)
+    d.setdefault("cancel_requested", 0)
+    d["cancel_requested"] = int(d["cancel_requested"] or 0)
     return Job(**d)
 
 
@@ -88,6 +93,8 @@ class JobManager:
             existing_cols = {r[1] for r in c.execute("PRAGMA table_info(jobs)")}
             if "error_code" not in existing_cols:
                 c.execute("ALTER TABLE jobs ADD COLUMN error_code TEXT")
+            if "cancel_requested" not in existing_cols:
+                c.execute("ALTER TABLE jobs ADD COLUMN cancel_requested INTEGER DEFAULT 0")
 
     def _conn(self) -> sqlite3.Connection:
         c = sqlite3.connect(self._db_path)
@@ -125,6 +132,23 @@ class JobManager:
 
     async def get(self, job_id: str) -> Job | None:
         return await asyncio.to_thread(self._get_sync, job_id)
+
+    async def request_cancel(self, job_id: str) -> bool:
+        """ジョブにキャンセル要求フラグを立てる。実際の中断はパイプライン側のチェック次第。"""
+        return await asyncio.to_thread(self._request_cancel_sync, job_id)
+
+    def _request_cancel_sync(self, job_id: str) -> bool:
+        with self._conn() as c:
+            row = c.execute("SELECT status FROM jobs WHERE id = ?", (job_id,)).fetchone()
+            if not row:
+                return False
+            if row["status"] in ("success", "error", "cancelled"):
+                return False  # 既に終端
+            c.execute(
+                "UPDATE jobs SET cancel_requested = 1, updated_at = ? WHERE id = ?",
+                (time.time(), job_id),
+            )
+            return True
 
     def _get_sync(self, job_id: str) -> Job | None:
         with self._conn() as c:

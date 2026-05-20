@@ -6,6 +6,26 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and thi
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-05-20
+
+初版安定リリース。コアパイプライン (画像DL → 3D生成 → スケール補正 → Homestyler アップロード) と運用必要機能が一通り揃った状態。
+
+### Added
+- `POST /api/jobs/{job_id}/cancel` 実行中ジョブへのキャンセル要求 API
+- `Job.cancel_requested` カラム (SQLite ALTER で旧DB互換マイグレーション)
+- パイプラインがステップ境界で `_abort_if_cancelled` をチェックし、`status=cancelled` で終端
+- popup 履歴タブにキャンセルボタン (queued/running のジョブのみ)
+- `cancelled` バッジ用 CSS
+- 構造化ログ統合: `logger.info(..., extra={"job_id": ...})` で JSON ログに job_id / error_code フィールドが乗る
+- README に「制約 / 既知の制限」セクション (Homestyler セレクター推測、model-viewer プレースホルダー等を明文化)
+
+### Tests
+- `tests/test_cancel.py` 7件: 404/409/JobManager 単体/パイプライン abort 2 ケース
+- 計 **87 backend + 20 extension = 107 テスト**、カバレッジ **84%**
+
+### Migrations
+- 旧 jobs.db に `cancel_requested INTEGER DEFAULT 0` を ALTER TABLE で自動追加
+
 ## [0.5.0] - 2026-05-19
 
 ### Added
