@@ -108,10 +108,25 @@ def test_full_pipeline_success(client, monkeypatch):
     final = _poll_until_terminal(client, job_id)
     assert final["status"] == "success"
     assert final["step"] == "done"
-    assert final["step_index"] == final["total_steps"]
+    assert final["step_index"] == final["total_steps"] == 3
     assert final["result"]["product"] == "テストチェア"
     assert final["result"]["glb"].endswith("_scaled.glb")
-    # Homestyler 呼び出しが正しい引数で行われた
+    # v2.0: コアパイプラインは Homestyler を呼ばない
+    assert len(upload_calls) == 0
+    # 後処理として /upload-to-homestyler を呼び出すと初めて upload される
+    r = client.post(f"/api/jobs/{job_id}/upload-to-homestyler")
+    assert r.status_code == 202
+
+    # Homestyler 後処理の終端を待つ
+    import time
+
+    deadline = time.time() + 3.0
+    while time.time() < deadline:
+        body = client.get(f"/api/status/{job_id}").json()
+        if body["status"] in ("success", "error") and body["step"] == "done":
+            break
+        time.sleep(0.05)
+
     assert len(upload_calls) == 1
     glb, name, dims, cat = upload_calls[0]
     assert glb == "output/fake_scaled.glb"

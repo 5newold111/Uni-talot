@@ -56,6 +56,9 @@ const progressEl = document.getElementById("progress");
 const progressBar = document.getElementById("progressBar");
 const previewWrap = document.getElementById("previewWrap");
 const modelViewer = document.getElementById("modelViewer");
+const uploadHomestylerBtn = document.getElementById("uploadHomestylerBtn");
+
+let lastSuccessfulJobId = null;
 
 function setStatus(message, type = "") {
   statusDiv.textContent = message;
@@ -127,6 +130,8 @@ btn.addEventListener("click", async () => {
   productDiv.style.display = "none";
   previewWrap.style.display = "none";
   guidanceDiv.style.display = "none";
+  uploadHomestylerBtn.style.display = "none";
+  lastSuccessfulJobId = null;
   hideProgress();
   await loadErrorGuidance();
 
@@ -163,8 +168,16 @@ btn.addEventListener("click", async () => {
     });
     setProgress(job.total_steps, job.total_steps, "success");
     const glbName = job.result?.glb?.split("/").pop() || "";
-    setStatus(`✅ 完了！\n「${job.result?.product || productData.product_name}」をHomestylerに登録しました`, "success");
+    setStatus(
+      `✅ GLB 生成完了！\n「${job.result?.product || productData.product_name}」の 3D モデルが手元に保存されました。\n必要なら下のボタンで Homestyler にアップロードできます。`,
+      "success"
+    );
     showPreview(glbName);
+    // Homestyler アップロードは別ジョブなのでボタンを表示
+    lastSuccessfulJobId = job_id;
+    uploadHomestylerBtn.style.display = "block";
+    uploadHomestylerBtn.disabled = false;
+    uploadHomestylerBtn.textContent = "Homestylerにアップロード (任意)";
 
   } catch (error) {
     setProgress(0, 1, "error");
@@ -173,6 +186,35 @@ btn.addEventListener("click", async () => {
     console.error("EC3D-Bridge エラー:", error);
   } finally {
     btn.disabled = false;
+  }
+});
+
+uploadHomestylerBtn.addEventListener("click", async () => {
+  if (!lastSuccessfulJobId) return;
+  uploadHomestylerBtn.disabled = true;
+  uploadHomestylerBtn.textContent = "アップロード中...";
+  try {
+    const r = await apiFetch(`/jobs/${lastSuccessfulJobId}/upload-to-homestyler`, {
+      method: "POST",
+    });
+    if (!r.ok) {
+      const err = await r.json().catch(() => ({}));
+      throw new Error(err.detail || `HTTP ${r.status}`);
+    }
+    setStatus("Homestyler アップロードジョブを開始しました...");
+    const job = await pollJob(lastSuccessfulJobId, j => {
+      setStatus(j.message || `状態: ${j.status}`);
+    });
+    setStatus(
+      `✅ Homestylerへの登録も完了しました: 「${job.result?.product || ""}」`,
+      "success"
+    );
+    uploadHomestylerBtn.style.display = "none";
+  } catch (error) {
+    setStatus(`Homestyler アップロード失敗: ${error.message}`, "error");
+    if (error.code) showGuidance(error.code);
+    uploadHomestylerBtn.disabled = false;
+    uploadHomestylerBtn.textContent = "Homestylerにアップロード (再試行)";
   }
 });
 

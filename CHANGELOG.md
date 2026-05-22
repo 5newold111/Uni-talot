@@ -6,6 +6,49 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and thi
 
 ## [Unreleased]
 
+## [2.0.0] - 2026-05-22
+
+### Breaking
+- **コアパイプラインから Homestyler アップロードを分離**。
+  `POST /api/process` のパイプラインは 4 ステップ → **3 ステップ** (download → generate → scale) になった。
+  Homestyler に GLB を流すには `POST /api/jobs/{id}/upload-to-homestyler` を別途呼ぶ。
+  STEPS 配列も短くなったので `total_steps` は新規ジョブで 3 を返す (旧ジョブは 4 のまま)。
+
+### Why (根本的な見直し)
+- Homestyler セレクターは推測値で本番動作未検証。それが全ジョブの必須パスにあったため、
+  Tripo に課金して GLB を生成してもジョブ全体が "error" 状態になり、ユーザーは何も
+  手にできなかった。これは課金がある以上、設計として誤り。
+- 新設計では:
+  - Tripo クレジットを消費して生成した GLB は確実に手元に残る (`result.glb`)
+  - Homestyler が壊れていてもコアジョブの `success` 状態は維持される
+  - Homestyler はオプショナルな後処理として明示的に呼ぶ (副作用の透明化)
+  - GLB は `/output/<file>` で直接ダウンロード可能 (Homestyler を使わない用途にも対応)
+
+### Added
+- `POST /api/jobs/{job_id}/upload-to-homestyler` エンドポイント:
+  成功ジョブの保存済み result からアップロードを起動。Homestyler が失敗しても
+  `result.glb` は保持されるので無限に再試行できる。
+- ジョブ result に `dimensions`/`category`/`source_url` を保存 (Homestyler 後処理で必要)
+- `backend/scripts/ec3d_cli.py`: CLI ツール (`ec3d submit/status/watch/jobs/cancel/upload-homestyler`)。
+  EC3D_API_URL / EC3D_API_KEY 環境変数で認証ヘッダも自動付与。
+  cron / シェルスクリプト / CI からの自動化に対応。
+- popup に「Homestylerにアップロード (任意)」ボタンを追加。3D 生成成功後にのみ表示。
+
+### Tests
+- `tests/test_homestyler_endpoint.py` 5件: 404/409/result 使用/失敗時 GLB 保持/コア無干渉
+- `tests/test_cli.py` 11件: submit/status/watch/jobs/cancel/upload-homestyler の各分岐
+
+### Metrics
+- backend テスト: 109 → **125** (+16)
+- 合計テスト: 146 → **162**
+- カバレッジ: 86% → **86.45%**
+
+### Migration guide
+旧 1.x クライアントがある場合の対応:
+- ジョブの `total_steps` が 4 → 3 に変わる (新規ジョブのみ)
+- ジョブ完了時の `step` が `done` で、自動的に Homestyler に上がらない
+- Homestyler に流したい場合は: `curl -X POST /api/jobs/<id>/upload-to-homestyler`
+
 ## [1.0.2] - 2026-05-22
 
 ### Added

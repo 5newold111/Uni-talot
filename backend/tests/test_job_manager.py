@@ -16,7 +16,7 @@ async def test_create_returns_queued_job(mgr):
     assert job.status == "queued"
     assert job.step == "queued"
     assert job.step_index == 0
-    assert job.total_steps == TOTAL_STEPS == 4
+    assert job.total_steps == TOTAL_STEPS == 3
     assert job.product_name == "テスト商品"
     assert job.result is None
     assert job.error is None

@@ -8,6 +8,7 @@
     "/api/process": {
       "post": {
         "summary": "Process Product",
+        "description": "3D 生成パイプラインを起動する (Homestyler アップロードは含まない)。",
         "operationId": "process_product_api_process_post",
         "requestBody": {
           "content": {
@@ -19,6 +20,44 @@
           },
           "required": true
         },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/jobs/{job_id}/upload-to-homestyler": {
+      "post": {
+        "summary": "Trigger Homestyler Upload",
+        "description": "成功済みジョブの GLB を Homestyler にアップロードする (オプショナル後処理)。\n\nパイプラインから切り離されているので、Homestyler が失敗してもコアジョブの\n'success' 状態は元の result に保存されている。ジョブのステータスは新たに\n'running' → 'success'/'error' に変わる。",
+        "operationId": "trigger_homestyler_upload_api_jobs__job_id__upload_to_homestyler_post",
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Job Id"
+            }
+          }
+        ],
         "responses": {
           "202": {
             "description": "Successful Response",

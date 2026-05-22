@@ -63,6 +63,15 @@ async def _abort_if_cancelled(job_id: str) -> bool:
 
 
 async def _run_pipeline(job_id: str, data: ProductData) -> None:
+    """
+    コアパイプライン: 画像DL → 3D生成 → スケール補正 (3ステップ)。
+
+    Homestyler アップロードは v2.0 で分離済み。`POST /api/jobs/{id}/upload-to-homestyler`
+    を別途呼ぶことで明示的に発火する。これにより:
+      - Homestyler セレクター不一致でジョブ全体が失敗しなくなる
+      - Tripo クレジットを消費して生成した GLB が確実に手元に残る
+      - GLB を直接ダウンロード/プレビュー用途にも使える
+    """
     log_extra = {"job_id": job_id}
     logger.info(f"[{job_id}] 処理開始: {data.product_name}", extra=log_extra)
     try:
@@ -72,16 +81,15 @@ async def _run_pipeline(job_id: str, data: ProductData) -> None:
             job_id,
             status="running",
             step="downloading_image",
-            message="[1/4] 商品画像をダウンロードしています...",
+            message="[1/3] 商品画像をダウンロードしています...",
         )
-        # ImageRef を従来のサービスが期待する dict 形式に変換
         images = [img.model_dump(mode="json") for img in data.images]
         image_path = await download_main_image(images)
 
         if await _abort_if_cancelled(job_id):
             return
         await jobs.update(
-            job_id, step="generating_3d", message="[2/4] 3Dモデルを生成しています（30秒〜2分）..."
+            job_id, step="generating_3d", message="[2/3] 3Dモデルを生成しています（30秒〜2分）..."
         )
         raw_glb_path = await generate_3d_model(image_path)
 
@@ -91,30 +99,23 @@ async def _run_pipeline(job_id: str, data: ProductData) -> None:
         d = data.dimensions.get("depth_cm", 0)
         h = data.dimensions.get("height_cm", 0)
         await jobs.update(
-            job_id, step="scaling", message=f"[3/4] 実寸（W{w}×D{d}×H{h}cm）にスケール補正中..."
+            job_id, step="scaling", message=f"[3/3] 実寸（W{w}×D{d}×H{h}cm）にスケール補正中..."
         )
         scaled_glb_path = await asyncio.to_thread(apply_real_scale, raw_glb_path, w, d, h)
-
-        if await _abort_if_cancelled(job_id):
-            return
-        await jobs.update(
-            job_id,
-            step="uploading_homestyler",
-            message="[4/4] Homestylerにアップロード中...",
-        )
-        await upload_to_homestyler(
-            glb_path=scaled_glb_path,
-            product_name=data.product_name,
-            dimensions=data.dimensions,
-            category=data.category or "家具",
-        )
 
         await jobs.update(
             job_id,
             status="success",
             step="done",
-            message=f"完了: {data.product_name} を Homestyler に登録しました",
-            result={"product": data.product_name, "glb": scaled_glb_path},
+            message=f"完了: GLB を生成しました ({data.product_name})",
+            # result には Homestyler 連携で必要な情報を全て格納しておく
+            result={
+                "product": data.product_name,
+                "glb": scaled_glb_path,
+                "dimensions": data.dimensions,
+                "category": data.category or "家具",
+                "source_url": str(data.source_url),
+            },
         )
         logger.info(f"[{job_id}] 完了: {data.product_name}")
 
@@ -145,11 +146,79 @@ async def _run_pipeline(job_id: str, data: ProductData) -> None:
         )
 
 
+async def _run_homestyler_upload(job_id: str) -> None:
+    """別ジョブとして Homestyler アップロードを実行する。失敗してもコアジョブには影響しない。"""
+    job = await jobs.get(job_id)
+    if not job or not job.result:
+        return
+    log_extra = {"job_id": job_id}
+    try:
+        await jobs.update(
+            job_id,
+            status="running",
+            step="uploading_homestyler",
+            message="Homestyler にアップロード中...",
+        )
+        await upload_to_homestyler(
+            glb_path=job.result["glb"],
+            product_name=job.result["product"],
+            dimensions=job.result.get("dimensions", {}),
+            category=job.result.get("category", "家具"),
+        )
+        await jobs.update(
+            job_id,
+            status="success",
+            step="done",
+            message=f"完了: {job.result['product']} を Homestyler に登録しました",
+        )
+        logger.info(f"[{job_id}] Homestyler 登録完了", extra=log_extra)
+    except PipelineError as e:
+        logger.error(
+            f"[{job_id}] Homestyler 失敗 {e}", extra={**log_extra, "error_code": e.code.value}
+        )
+        await jobs.update(
+            job_id,
+            status="error",
+            error=e.message,
+            error_code=e.code.value,
+            message=f"Homestyler エラー: {e.message}",
+        )
+    except Exception as e:
+        logger.exception(f"[{job_id}] Homestyler 予期しないエラー", extra=log_extra)
+        await jobs.update(
+            job_id,
+            status="error",
+            error=str(e),
+            error_code=ErrorCode.UPLOAD_FAILED.value,
+            message=f"Homestyler エラー: {e}",
+        )
+
+
 @router.post("/process", status_code=202)
 async def process_product(data: ProductData, background_tasks: BackgroundTasks):
+    """3D 生成パイプラインを起動する (Homestyler アップロードは含まない)。"""
     job = await jobs.create(data.product_name)
     background_tasks.add_task(_run_pipeline, job.id, data)
     return {"job_id": job.id, "status": job.status}
+
+
+@router.post("/jobs/{job_id}/upload-to-homestyler", status_code=202)
+async def trigger_homestyler_upload(job_id: str, background_tasks: BackgroundTasks):
+    """成功済みジョブの GLB を Homestyler にアップロードする (オプショナル後処理)。
+
+    パイプラインから切り離されているので、Homestyler が失敗してもコアジョブの
+    'success' 状態は元の result に保存されている。ジョブのステータスは新たに
+    'running' → 'success'/'error' に変わる。"""
+    job = await jobs.get(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="job_id が見つかりません")
+    if not job.result or "glb" not in job.result:
+        raise HTTPException(
+            status_code=409,
+            detail=f"GLB が存在しません (status={job.status})。先に /api/process を成功させてください",
+        )
+    background_tasks.add_task(_run_homestyler_upload, job_id)
+    return {"job_id": job_id, "status": "queued_homestyler"}
 
 
 @router.get("/status/{job_id}")

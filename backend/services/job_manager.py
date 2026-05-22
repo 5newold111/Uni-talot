@@ -19,10 +19,9 @@ STEPS = [
     "downloading_image",
     "generating_3d",
     "scaling",
-    "uploading_homestyler",
     "done",
 ]
-TOTAL_STEPS = len(STEPS) - 2  # queued/done を除いた 4 ステップ
+TOTAL_STEPS = len(STEPS) - 2  # queued/done を除いた 3 ステップ (Homestyler は別ジョブ)
 
 
 @dataclass
