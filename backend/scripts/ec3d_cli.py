@@ -161,8 +161,30 @@ def main(argv=None) -> int:
     s_up.add_argument("--wait", action="store_true")
     s_up.set_defaults(func=cmd_upload_homestyler)
 
+    s_cal = sub.add_parser(
+        "calibrate",
+        help="Homestyler 実画面でセッション/セレクターを取得 (login/probe/capture/dump-dom)",
+    )
+    s_cal.add_argument("subcommand", choices=["login", "probe", "capture", "dump-dom"])
+    s_cal.add_argument("selector_name", nargs="?", help="capture サブコマンド用")
+    s_cal.set_defaults(func=cmd_calibrate)
+
     args = p.parse_args(argv)
     return args.func(args)
+
+
+def cmd_calibrate(args) -> int:
+    """calibrate_homestyler.py へのラッパー (CLI 統合用)。"""
+    import subprocess
+
+    script = Path(__file__).parent / "calibrate_homestyler.py"
+    cmd = [sys.executable, str(script), args.subcommand]
+    if args.subcommand == "capture":
+        if not args.selector_name:
+            print("ERROR: capture には selector_name が必須です", file=sys.stderr)
+            return 1
+        cmd.append(args.selector_name)
+    return subprocess.call(cmd)
 
 
 if __name__ == "__main__":

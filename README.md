@@ -3,7 +3,7 @@
 [![Tests](https://github.com/5newold111/furniture-3D-modeling-/actions/workflows/test.yml/badge.svg)](https://github.com/5newold111/furniture-3D-modeling-/actions/workflows/test.yml)
 ![Coverage](https://img.shields.io/badge/coverage-86%25-brightgreen)
 ![Python](https://img.shields.io/badge/python-3.11+-blue)
-![Version](https://img.shields.io/badge/version-2.0.0-blue)
+![Version](https://img.shields.io/badge/version-2.1.0-blue)
 
 ECサイトの商品ページから家具情報を抽出し、自動で 3D モデル化して Homestyler に登録する Chrome 拡張機能 + バックエンドです。
 
@@ -252,7 +252,41 @@ extension/
 .github/workflows/test.yml      # CI
 ```
 
-### Homestyler セレクター検証手順
+### Homestyler 実画面の組み込み (v2.1)
+
+実画面を実際に起動・操作するための calibrate ツールが同梱されています。
+**ユーザーのローカル環境で 1 回実行するだけで、CAPTCHA / OAuth 含めた認証を突破し、以後は自動運用**できます。
+
+```bash
+cd backend
+# 1) ブラウザを立ち上げて手動ログイン (Google OAuth / CAPTCHA 通過可)
+python scripts/calibrate_homestyler.py login
+#   → homestyler_storage_state.json にセッション保存
+
+# 2) 既定セレクターが今の画面で動くか確認
+python scripts/calibrate_homestyler.py probe
+#   → ✓/✗ のリストで各セレクターの可視性を表示
+
+# 3) 動かないセレクターを実画面で再キャプチャ
+python scripts/calibrate_homestyler.py capture upload_button
+#   → DevTools で取った CSS セレクターを入力 → homestyler_selectors.json に保存
+
+# 4) 画面 DOM を保存して手動で探索
+python scripts/calibrate_homestyler.py dump-dom
+#   → logs/calibration_<ts>.{html,png,url.txt}
+```
+
+CLI 統合版: `python scripts/ec3d_cli.py calibrate login` でも同じことができます。
+
+**動作原理**:
+- 認証は `homestyler_storage_state.json` (Playwright `storage_state` 形式) を優先使用。
+  email/password 自動入力にフォールバックする前にこれをチェック。
+- セレクターは `homestyler_selectors.json` で個別に上書き可能。コード変更不要。
+- 失敗時は `logs/error_<product>_<ts>.{png,html,url.txt}` に DOM スナップショットが
+  自動保存され、後でセレクター修正に活用できる。
+- セッションが失効していれば `HOMESTYLER_AUTH_FAILED` で即座に検出。
+
+### Homestyler セレクター検証手順 (calibrate 以前の手動方式)
 
 `services/homestyler_bot.py` の `SELECTORS` は推測値のため、実環境で動かす前に必ず以下を実施してください。
 

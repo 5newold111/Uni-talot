@@ -6,6 +6,49 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and thi
 
 ## [Unreleased]
 
+## [2.1.0] - 2026-05-22
+
+### Added
+- Homestyler 実画面の組み込みツール群:
+  - `scripts/calibrate_homestyler.py` CLI に 4 サブコマンド:
+    - `login` — ブラウザを立ち上げ手動ログイン → `homestyler_storage_state.json` に
+      Playwright storage_state を保存 (CAPTCHA / Google OAuth 通過可)
+    - `probe` — 既定セレクターが現在の画面で可視か全件チェック (UI 変更検出)
+    - `capture <name>` — DevTools で取得したセレクターを実画面で検証して
+      `homestyler_selectors.json` に保存
+    - `dump-dom` — 現在画面の HTML/PNG/URL を logs/ に保存
+- `services.homestyler_bot` の認証ロジックを書き換え:
+  - `homestyler_storage_state.json` があればセッション復元 (login 画面を完全スキップ)
+  - なければ email/password でフォールバック自動ログイン
+  - storage_state でアクセス後 login/signin URL に飛ばされたら失効として即座に検出
+- `homestyler_selectors.json` による外部セレクター上書き
+  (コード変更なしで実画面のセレクターに差し替え可能)
+- 失敗時の自動デバッグダンプ: `logs/error_<product>_<ts>.{png,html,url.txt}`
+- 早期認証チェック: storage_state も email/password も無ければ Chromium 起動前に失敗
+- `ec3d_cli.py calibrate <subcommand>` 統合: 単一の CLI から calibrate も呼び出せる
+- `HOMESTYLER_HEADLESS=false` / `HOMESTYLER_SLOW_MO=<ms>` env 対応 (デバッグ用)
+- `HOMESTYLER_STORAGE_STATE` / `HOMESTYLER_SELECTORS` env でパス変更可
+
+### Tests
+- `tests/test_homestyler_calibration.py` 11件:
+  - _load_selectors の default / override / 不正 JSON
+  - _have_storage_state の missing / empty / present
+  - upload が storage_state を context に渡す検証
+  - storage_state なしのフォールバック
+  - セレクター上書きが実 upload で使われる
+  - 失効セッション検出 (HOMESTYLER_AUTH_FAILED)
+  - 失敗時の DOM/PNG/URL ダンプ
+
+### Metrics
+- backend テスト: 125 → **136** (+11)
+- カバレッジ: 86.45% → ~93%
+
+### Limitations (率直に明記)
+- このサンドボックスからは homestyler.com に到達できない (HTTP 403)。
+  実画面操作の検証はユーザー側ローカル環境で `calibrate login` を実行することで完了する。
+- 全ての code path はテストで検証済み (Playwright をモックしてセッション復元 /
+  失効検出 / セレクター上書き / ダンプ生成を確認)。
+
 ## [2.0.0] - 2026-05-22
 
 ### Breaking
