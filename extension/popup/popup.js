@@ -2,6 +2,9 @@ const API_BASE = "http://localhost:3000/api";
 const POLL_INTERVAL_MS = 1500;
 const POLL_TIMEOUT_MS = 5 * 60 * 1000;
 
+// popup_utils.js が <script> で先に読まれている前提でグローバルに公開される
+// (timeAgo / escapeHtml / parseBulkUrls / statusBadgeClass)
+
 // ===== タブ切替 =====
 document.querySelectorAll(".tab").forEach(tab => {
   tab.addEventListener("click", () => {
@@ -196,7 +199,7 @@ async function waitForTabComplete(tabId) {
 }
 
 bulkBtn.addEventListener("click", async () => {
-  const urls = bulkUrlsTA.value.split("\n").map(s => s.trim()).filter(s => s.startsWith("http"));
+  const urls = parseBulkUrls(bulkUrlsTA.value);
   if (urls.length === 0) {
     setBulkStatus("有効なURLが見つかりません", "error");
     return;
@@ -233,14 +236,6 @@ bulkBtn.addEventListener("click", async () => {
 // ===== 履歴タブ =====
 const historyList = document.getElementById("historyList");
 document.getElementById("refreshHistoryBtn").addEventListener("click", loadHistory);
-
-function timeAgo(ts) {
-  const diff = (Date.now() / 1000) - ts;
-  if (diff < 60) return `${Math.floor(diff)}秒前`;
-  if (diff < 3600) return `${Math.floor(diff / 60)}分前`;
-  if (diff < 86400) return `${Math.floor(diff / 3600)}時間前`;
-  return `${Math.floor(diff / 86400)}日前`;
-}
 
 async function loadHistory() {
   historyList.innerHTML = '<li class="small-muted">読み込み中...</li>';
@@ -284,8 +279,3 @@ async function loadHistory() {
   }
 }
 
-function escapeHtml(s) {
-  return String(s).replace(/[&<>"']/g, c => ({
-    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
-  })[c]);
-}

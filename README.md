@@ -1,7 +1,7 @@
 # EC3D-Bridge
 
 [![Tests](https://github.com/5newold111/furniture-3D-modeling-/actions/workflows/test.yml/badge.svg)](https://github.com/5newold111/furniture-3D-modeling-/actions/workflows/test.yml)
-![Coverage](https://img.shields.io/badge/coverage-84%25-brightgreen)
+![Coverage](https://img.shields.io/badge/coverage-86%25-brightgreen)
 ![Python](https://img.shields.io/badge/python-3.11+-blue)
 ![Version](https://img.shields.io/badge/version-1.0.0-blue)
 

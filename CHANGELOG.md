@@ -6,6 +6,40 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and thi
 
 ## [Unreleased]
 
+## [1.0.2] - 2026-05-22
+
+### Added
+- popup_utils.js: timeAgo / escapeHtml / parseBulkUrls / statusBadgeClass を切り出し、
+  popup.js とテストの両方から利用可能に
+- 17 件の popup ヘルパー単体テスト (`tests/test_popup_utils.mjs`):
+  - timeAgo の秒/分/時間/日/未来分岐
+  - escapeHtml の XSS / 二重エスケープ / 非文字列キャスト
+  - parseBulkUrls の空行スキップ / javascript:・data: 弾き
+  - statusBadgeClass の既知/未知ハンドリング
+- 11 件の homestyler_bot 単体テスト (`tests/test_homestyler_unit.py`):
+  - SELECTORS 辞書の整合性 (必須キー、CSV 形式)
+  - _find_element のフォールバック挙動 (最初の可視を返す/全部不可視/例外スキップ/空白trim)
+  - upload_to_homestyler の事前検証 (email/password/GLB 不在)
+  - スクリーンショットファイル名のサニタイズ
+  - Semaphore のデフォルト容量
+- 9 件のサーバースモークテスト (`tests/test_smoke.py`):
+  - 全 7 エンドポイントが FastAPI に登録されている
+  - /output 静的マウントが有効
+  - /openapi.json / /docs (Swagger UI) が応答
+  - 単発投入→ status→ jobs→ cancel→ guidance のフルフロー
+  - 404/405/CORS リーク防止
+
+### Changed
+- popup.js / popup_utils.js を分離。popup.js は DOM 操作専念、純関数は utils に集約
+- index.html に popup_utils.js 読み込みを追加 (popup.js の前にロード)
+- CI が test_popup_utils.mjs も実行
+
+### Metrics
+- backend テスト: 89 → **109** (+20)
+- extension テスト: 20 → **37** (+17)
+- 合計テスト: **146**
+- カバレッジ: 84% → **86%** (homestyler_bot: 34% → 46%)
+
 ## [1.0.1] - 2026-05-22
 
 ### Fixed
