@@ -6,6 +6,26 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and thi
 
 ## [Unreleased]
 
+## [1.0.1] - 2026-05-22
+
+### Fixed
+- **Blender 4.0+ で `bpy.ops.export_scene.gltf` の `export_selected` 引数が削除されていた**
+  ため `scale_model.py` が実行時 TypeError でクラッシュしていた。引数を削除して回避。
+  この問題は実 Blender バイナリで実行して初めて顕在化したもの (subprocess.run をモック
+  したユニットテストでは検出不可能だった)。
+
+### Added
+- `backend/scripts/verify_dependencies.py`: Blender / Tripo (fal.ai) / Homestyler の
+  疎通・認証を最小コードで実検証する CLI (`--blender / --tripo / --homestyler / --all`)
+- `tests/test_blender_integration.py`: 実 Blender バイナリで `scale_model.py` と
+  `apply_real_scale` を回帰テスト (2件)。Blender 未インストールなら自動 skip
+- CI が `apt install blender python3-numpy` で Blender 4.0+ を入れて統合テストも走らせる
+- README に「本番依存の検証ステータス」セクションを追加 (Blender ✅ / Tripo・Homestyler 未検証)
+
+### Verified
+- ✅ Blender 4.0.2 で 20cm 立方体 → W80×D40×H75cm 補正を実走確認
+- ✅ scale_correction サービス層経由でも同様に正しい寸法
+
 ## [1.0.0] - 2026-05-20
 
 初版安定リリース。コアパイプライン (画像DL → 3D生成 → スケール補正 → Homestyler アップロード) と運用必要機能が一通り揃った状態。

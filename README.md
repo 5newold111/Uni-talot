@@ -285,20 +285,34 @@ extension/
 
 `/health/detail` を確認すると、どの依存が落ちているかを一目で把握できます。
 
-## 制約 / 既知の制限
+## 本番依存の検証ステータス
 
-率直にいうと、以下は本番運用前に必ず確認/対応すべき項目です。
-
-| 項目 | 状態 | 備考 |
+| 依存 | 状態 | 検証方法 |
 |---|---|---|
-| Tripo (fal.ai) 認証情報 | 未検証 | `.env` に実 API キーを入れて 1 回成功させる必要あり |
-| Homestyler セレクター | **推測値** | 実画面で `headless=False` キャリブレーション必須 ([README 該当節](#homestyler-セレクター検証手順)) |
-| Homestyler の CAPTCHA / OAuth | 未対応 | 必要なら `storage_state` ベースのセッション保持に切替 |
-| model-viewer.min.js | **同梱はプレースホルダー** | 実プレビューを使うなら [Google's model-viewer](https://modelviewer.dev/) から `dist/model-viewer.min.js` を `extension/popup/` に配置 |
-| Job キャンセルの即時性 | ベストエフォート | ステップ境界でのみ中断する。`generate_3d_model` 中の Tripo API 呼び出しは中断不可 |
-| マルチサーバー | 非対応 | SQLite は単一マシン前提。共有が必要なら Postgres へ |
-| 大量ジョブ (>1000件/日) | 想定外 | Homestyler ボットが直列化済みで現実的な上限がある |
-| Blender のインストール | 環境依存 | Docker Compose では同梱 (\~2.5GB)。ローカル実行時は別途インストール要 |
+| **Blender スケール補正** | ✅ **検証済み** (Blender 4.0.2 で 20cm立方体 → W80×D40×H75cm 確認) | `python scripts/verify_dependencies.py --blender` |
+| Tripo (fal.ai) | 未検証 (FAL_API_KEY が必要) | `python scripts/verify_dependencies.py --tripo` |
+| Homestyler | 未検証 (実アカウント認証情報 + 目視キャリブレーション必要) | `python scripts/verify_dependencies.py --homestyler` |
+
+実行例:
+```bash
+cd backend
+python scripts/verify_dependencies.py --all  # 3 つすべて
+```
+
+検証中に発見・修正したバグ:
+- **Blender 4.0+ で `bpy.ops.export_scene.gltf` の `export_selected` 引数が削除** → `scale_model.py` から削除済 (回帰テスト `tests/test_blender_integration.py` 追加)
+
+## 既知の制限
+
+| 項目 | 備考 |
+|---|---|
+| Homestyler セレクター | **推測値**。実画面で `headless=False` キャリブレーション必須 ([Homestyler セレクター検証手順](#homestyler-セレクター検証手順)) |
+| Homestyler の CAPTCHA / OAuth | 未対応。必要なら `storage_state` ベースのセッション保持に切替 |
+| model-viewer.min.js | **同梱はプレースホルダー**。実プレビューを使うなら [Google's model-viewer](https://modelviewer.dev/) から `dist/model-viewer.min.js` を `extension/popup/` に配置 |
+| Job キャンセルの即時性 | ベストエフォート。ステップ境界でのみ中断する。`generate_3d_model` 中の Tripo API 呼び出しは中断不可 |
+| マルチサーバー | 非対応。SQLite は単一マシン前提。共有が必要なら Postgres へ |
+| 大量ジョブ (>1000件/日) | 想定外。Homestyler ボットが直列化済みで現実的な上限がある |
+| Blender のインストール | 環境依存。Docker Compose では同梱 (\~2.5GB)。ローカル実行時は `apt install blender python3-numpy` |
 
 ## ドキュメント
 

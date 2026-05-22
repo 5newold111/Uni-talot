@@ -74,13 +74,14 @@ def main():
     print(f"適用スケール: X×{sx:.4f}, Y×{sy:.4f}, Z×{sz:.4f}")
 
     os.makedirs(os.path.dirname(os.path.abspath(output_path)), exist_ok=True)
+    # Blender 4.0+ で export_selected は use_selection にリネームされた。
+    # デフォルト False (全部エクスポート) で十分なので明示しない。
     bpy.ops.export_scene.gltf(
         filepath=os.path.abspath(output_path),
         export_format="GLB",
         export_texcoords=True,
         export_normals=True,
         export_materials="EXPORT",
-        export_selected=False,
     )
 
     print(f"スケール補正完了 → {output_path}")
