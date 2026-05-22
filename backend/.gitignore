@@ -6,3 +6,9 @@ __pycache__/
 .venv/
 .pytest_cache/
 *.db
+# Homestyler 連携で生成されるユーザー固有のファイル (機微情報を含む)
+#   - storage_state: セッション Cookie。コミットすると実質ログイン認証が流出する
+#   - selectors: ユーザーごとに違うので共有しない方が安全
+homestyler_storage_state.json
+homestyler_selectors.json
+homestyler_*.json

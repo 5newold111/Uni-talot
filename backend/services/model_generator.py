@@ -80,7 +80,12 @@ async def generate_3d_model(image_path: str) -> str:
             if response.status_code in (402, 429)
             else ErrorCode.MODEL_GENERATION_FAILED
         )
-        raise PipelineError(code, f"Tripo APIエラー: {response.status_code} {response.text[:300]}")
+        # API キーや Cookie がレスポンスにエコーされるケースを警戒し、
+        # 機微っぽい文字列を含まない短い概要のみエラーに乗せる。詳細は logs/ に。
+        logger.warning(f"Tripo API error body (logged separately): {response.text[:500]}")
+        raise PipelineError(
+            code, f"Tripo APIエラー: status={response.status_code} (詳細はログ参照)"
+        )
 
     result = response.json()
     glb_url = (result.get("model_mesh") or {}).get("url", "")

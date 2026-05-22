@@ -8,6 +8,7 @@ from PIL import Image
 
 from services.errors import ErrorCode, PipelineError
 from services.http_retry import request_with_retry
+from services.url_safety import is_url_safe
 
 logger = logging.getLogger(__name__)
 
@@ -16,6 +17,8 @@ async def download_main_image(images: list[dict]) -> str:
     """
     商品画像リストから最初の有効な画像をダウンロードして保存する。
     type="front" があればそれを優先する。
+
+    SSRF 防御: URL は事前に is_url_safe() で内部 IP/予約 IP に解決されないことを検証する。
     """
     os.makedirs("output", exist_ok=True)
 
@@ -26,6 +29,11 @@ async def download_main_image(images: list[dict]) -> str:
     for img in sorted_images:
         url = img.get("url", "")
         if not url or not url.startswith("http"):
+            continue
+        # SSRF チェック
+        safe, reason = is_url_safe(url)
+        if not safe:
+            logger.warning(f"安全でない URL をスキップ: {url} ({reason})")
             continue
         try:
             async with httpx.AsyncClient(timeout=30, follow_redirects=True) as client:

@@ -8,6 +8,7 @@ fluentd / Loki に流す場合は `LOG_FORMAT=json` を設定。
 import json
 import logging
 import os
+import re
 import sys
 
 
@@ -57,6 +58,50 @@ class JsonFormatter(logging.Formatter):
         return json.dumps(payload, ensure_ascii=False)
 
 
+# ログから機密値を自動マスクするフィルター。
+# .env から読んだ実値そのものがログ文字列に登場した場合に <REDACTED:NAME> に置換する。
+# 「漏洩しないように書く」のが第一原則だが、ヒューマンエラー時の最終防衛線として動かす。
+_SECRET_ENV_VARS = (
+    "FAL_API_KEY",
+    "HOMESTYLER_PASSWORD",
+    "EC3D_API_KEY",
+    "HF_TOKEN",  # 念のため過去互換
+)
+
+
+class SecretRedactor(logging.Filter):
+    """各レコードのメッセージから既知シークレット値を <REDACTED:NAME> に置換する。"""
+
+    def __init__(self) -> None:
+        super().__init__()
+        # value が短すぎる/プレースホルダの場合はパターンに含めない
+        self._patterns: list[tuple[re.Pattern, str]] = []
+        for name in _SECRET_ENV_VARS:
+            val = os.getenv(name, "")
+            if (
+                val
+                and len(val) >= 8
+                and val not in ("your_fal_api_key_here", "your_password_here", "your_email_here")
+            ):
+                self._patterns.append((re.compile(re.escape(val)), f"<REDACTED:{name}>"))
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        if not self._patterns:
+            return True
+        try:
+            msg = record.getMessage()
+        except Exception:
+            return True
+        masked = msg
+        for pat, repl in self._patterns:
+            masked = pat.sub(repl, masked)
+        if masked != msg:
+            # 後段で再フォーマットされないよう、args をクリアして msg を直接置換
+            record.msg = masked
+            record.args = ()
+        return True
+
+
 def configure_logging(log_file: str = "logs/app.log") -> None:
     os.makedirs(os.path.dirname(log_file), exist_ok=True)
     fmt = os.getenv("LOG_FORMAT", "text").lower()
@@ -77,5 +122,11 @@ def configure_logging(log_file: str = "logs/app.log") -> None:
     file_handler.setFormatter(formatter)
     stream_handler = logging.StreamHandler(sys.stdout)
     stream_handler.setFormatter(formatter)
+
+    # 機密値マスキング
+    redactor = SecretRedactor()
+    file_handler.addFilter(redactor)
+    stream_handler.addFilter(redactor)
+
     root.addHandler(file_handler)
     root.addHandler(stream_handler)
