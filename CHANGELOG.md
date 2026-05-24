@@ -6,6 +6,44 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and thi
 
 ## [Unreleased]
 
+## [2.4.0] - 2026-05-24
+
+### Added — Chrome 拡張機能なしで使えるスタンドアロン Web UI
+- `backend/ui/index.html`: ブラウザで `http://localhost:3000/ui/` を開いて
+  URL を貼り付けて使えるスタンドアロン UI (拡張機能インストール不要)
+  - 単発 URL タブ: URL 入力 + 寸法手動上書き + 3D プレビュー
+  - 一括 URL タブ: 行区切り URL を順次投入
+  - 履歴タブ: `/api/jobs` を表示
+  - 使い方タブ: 制約とサンプル curl コマンドを記載
+- `backend/services/url_scraper.py`: サーバー側 HTML スクレイパー
+  - og:image / og:title / h1 / title の優先順で商品名抽出
+  - og:image を front 画像に、追加 img タグから 4 件を other に
+  - 寸法は `W×D×H` パターン / `数×数×数 mm|cm` パターンを正規表現抽出
+  - 相対 URL を絶対 URL に正規化 (`//cdn/x.jpg`, `/img/x.jpg` 両対応)
+  - SSRF 防御 (`is_url_safe()` で内部 IP 弾き)
+- `POST /api/process-url`: URL 1 件を受け取りサーバー側で抽出 → 投入
+  - 寸法をクライアント側で上書き指定可能
+  - 画像が 1 枚も取れなかったら 422 で「拡張機能版を試してください」
+- `main.py` で `/ui/` 静的マウント追加
+
+### Tests (20 新規)
+- `_parse_dimensions` の WxDxH / triple x / 該当なし
+- `_absolute_url` の絶対 / プロトコル相対 / ルート相対 / 相対
+- `scrape_product_url`: og タグ抽出 / H1 フォールバック / 寸法抽出 / 404 / SSRF 拒否 / javascript: 拒否
+- `/api/process-url` エンドポイント: success / dimensions 上書き / 画像なし 422 / 不正 URL 422
+- `/ui/` 静的配信: index.html が返る / URL 入力欄が含まれる
+
+### Limitations (率直に)
+- JS でレンダリングされる SPA 商品ページは取れない (HTML 直読みなので)
+- 拡張機能版に比べて寸法抽出精度が低い (個別セレクタ未対応)
+- 詳細な情報が必要なら依然として Chrome 拡張機能版が推奨
+
+### Numbers
+- backend tests: 168 → 188 (+20)
+- 合計テスト: 214 → 234
+- エンドポイント: 8 → 9
+- カバレッジ: 93.1%
+
 ## [2.3.0] - 2026-05-22
 
 ### Added — 拡張機能で任意の URL を直接入力可能に

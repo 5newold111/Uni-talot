@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EC3D-Bridge — URL から 3D 化</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Hiragino Sans",
+                   "ヒラギノ角ゴシック", sans-serif;
+      margin: 0;
+      padding: 20px;
+      background: #f4f6f8;
+      color: #1a1a1a;
+      max-width: 900px;
+      margin: 0 auto;
+    }
+    header {
+      display: flex;
+      align-items: baseline;
+      gap: 12px;
+      padding-bottom: 16px;
+      border-bottom: 2px solid #2c5364;
+      margin-bottom: 20px;
+    }
+    h1 { font-size: 24px; margin: 0; color: #2c5364; }
+    .subtitle { font-size: 13px; color: #666; }
+    .version { margin-left: auto; font-size: 11px; color: #999; }
+
+    /* タブ */
+    .tabs {
+      display: flex; gap: 4px; margin-bottom: 16px;
+      border-bottom: 1px solid #d6dbe1;
+    }
+    .tab {
+      padding: 10px 18px; cursor: pointer; background: transparent;
+      border: none; font-size: 14px; color: #555;
+      border-bottom: 3px solid transparent;
+    }
+    .tab.active { color: #2c5364; border-bottom-color: #2c5364; font-weight: 600; }
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+
+    /* カード */
+    .card {
+      background: white; border-radius: 8px;
+      padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+      margin-bottom: 16px;
+    }
+    h2 { font-size: 16px; margin: 0 0 12px; color: #333; }
+
+    /* フォーム */
+    input[type=url], input[type=text], input[type=number], textarea {
+      width: 100%; padding: 10px 12px; font-size: 14px;
+      border: 1px solid #c4cad2; border-radius: 6px;
+      font-family: inherit;
+    }
+    input.invalid { border-color: #c0392b; background: #fdf3f3; }
+    textarea { min-height: 120px; font-family: monospace; font-size: 13px; resize: vertical; }
+    label { display: block; font-size: 13px; color: #555; margin: 12px 0 6px; }
+    .dims-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+    .hint { font-size: 11px; color: #888; margin-top: 4px; }
+    .hint.error { color: #c0392b; }
+    .hint.warning { color: #b07a16; }
+    .hint.ok { color: #1d6e35; }
+
+    button.primary {
+      background: #2c5364; color: white; border: none;
+      padding: 11px 22px; font-size: 14px; border-radius: 6px; cursor: pointer;
+      margin-top: 14px;
+    }
+    button.primary:disabled { background: #bbb; cursor: not-allowed; }
+    button.secondary {
+      background: white; color: #2c5364; border: 1px solid #2c5364;
+      padding: 8px 16px; font-size: 13px; border-radius: 6px; cursor: pointer;
+    }
+
+    /* ステータス */
+    .status-line {
+      margin-top: 12px; padding: 10px 12px; border-radius: 6px;
+      font-size: 13px; line-height: 1.6; white-space: pre-wrap;
+    }
+    .status-line.info { background: #e8f0f4; color: #1f5b86; }
+    .status-line.success { background: #d4eddb; color: #1d6e35; }
+    .status-line.error { background: #f5cfcf; color: #8b2424; }
+    .progress {
+      margin-top: 10px; height: 6px; background: #e6e9ee;
+      border-radius: 3px; overflow: hidden; display: none;
+    }
+    .progress.visible { display: block; }
+    .progress > .bar {
+      height: 100%; width: 0%; background: #2c5364;
+      transition: width 0.35s ease-out;
+    }
+    .progress.success > .bar { background: #27ae60; }
+    .progress.error > .bar { background: #c0392b; }
+
+    /* 履歴 */
+    .history-list { list-style: none; padding: 0; margin: 0; max-height: 500px; overflow-y: auto; }
+    .history-item {
+      padding: 12px; border-bottom: 1px solid #eef0f3;
+      display: flex; align-items: center; gap: 10px;
+    }
+    .badge {
+      display: inline-block; padding: 2px 8px; border-radius: 10px;
+      font-size: 11px; font-weight: 600;
+    }
+    .badge.success { background: #d4eddb; color: #1d6e35; }
+    .badge.error { background: #f5cfcf; color: #8b2424; }
+    .badge.running { background: #d6e8f5; color: #1f5b86; }
+    .badge.queued { background: #e8e8e8; color: #444; }
+    .badge.cancelled { background: #f0e0d0; color: #6b4a1f; }
+    .history-name { flex: 1; font-size: 13px; }
+    .history-meta { font-size: 11px; color: #888; }
+
+    /* プレビュー */
+    .preview {
+      margin-top: 14px; height: 300px;
+      background: #1a1a1a; border-radius: 8px; display: flex;
+      align-items: center; justify-content: center; color: #999; font-size: 12px;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>EC3D-Bridge</h1>
+    <span class="subtitle">商品 URL から 3D モデルを生成</span>
+    <span class="version" id="versionBadge">connecting...</span>
+  </header>
+
+  <div class="tabs">
+    <button class="tab active" data-tab="single">単発 URL</button>
+    <button class="tab" data-tab="bulk">一括 URL</button>
+    <button class="tab" data-tab="history">履歴</button>
+    <button class="tab" data-tab="help">使い方</button>
+  </div>
+
+  <!-- ===== 単発 URL ===== -->
+  <div class="tab-panel active" data-tab-panel="single">
+    <div class="card">
+      <h2>1. 商品 URL を貼り付け</h2>
+      <input type="url" id="singleUrl" placeholder="https://www.nitori-net.jp/ec/product/12345/">
+      <div class="hint" id="singleUrlHint"></div>
+
+      <h2 style="margin-top:20px">2. (任意) 寸法を上書き指定</h2>
+      <p class="hint">空欄なら商品ページから自動抽出を試みます (失敗時は 0cm = スケール補正なし)</p>
+      <div class="dims-row">
+        <div>
+          <label>幅 (cm)</label>
+          <input type="number" id="dimW" min="0" max="1000" step="0.1" placeholder="80">
+        </div>
+        <div>
+          <label>奥行 (cm)</label>
+          <input type="number" id="dimD" min="0" max="1000" step="0.1" placeholder="40">
+        </div>
+        <div>
+          <label>高さ (cm)</label>
+          <input type="number" id="dimH" min="0" max="1000" step="0.1" placeholder="75">
+        </div>
+      </div>
+
+      <button class="primary" id="submitBtn">3D化を開始</button>
+      <div class="status-line info" id="singleStatus" style="display:none"></div>
+      <div class="progress" id="singleProgress"><div class="bar" id="singleBar"></div></div>
+      <div class="preview" id="singlePreview" style="display:none">3D プレビュー枠</div>
+      <button class="secondary" id="uploadHomestylerBtn" style="display:none; margin-top:10px">
+        Homestylerにアップロード (任意)
+      </button>
+    </div>
+  </div>
+
+  <!-- ===== 一括 URL ===== -->
+  <div class="tab-panel" data-tab-panel="bulk">
+    <div class="card">
+      <h2>商品 URL を 1 行に 1 つずつ貼り付け</h2>
+      <textarea id="bulkUrls" placeholder="https://www.nitori-net.jp/ec/product/xxx/
+https://www.ikea.com/jp/ja/p/xxx/
+https://www.low-ya.com/products/xxx"></textarea>
+      <p class="hint">処理時間は 1 件あたり 1〜2 分。50 件で約 1〜2 時間</p>
+      <button class="primary" id="bulkSubmitBtn">一括投入</button>
+      <div class="status-line info" id="bulkStatus" style="display:none"></div>
+    </div>
+  </div>
+
+  <!-- ===== 履歴 ===== -->
+  <div class="tab-panel" data-tab-panel="history">
+    <div class="card">
+      <h2>
+        ジョブ履歴
+        <button class="secondary" id="refreshHistoryBtn" style="float:right">再読込</button>
+      </h2>
+      <ul class="history-list" id="historyList">
+        <li class="history-item"><span class="history-name">読み込み中...</span></li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- ===== 使い方 ===== -->
+  <div class="tab-panel" data-tab-panel="help">
+    <div class="card">
+      <h2>このページの使い方</h2>
+      <p>
+        Chrome 拡張機能をインストールしなくても、このページから URL を貼り付けるだけで
+        家具の 3D モデルを生成できます。
+      </p>
+      <h2>制約</h2>
+      <ul style="font-size:13px; line-height:1.7; color:#555">
+        <li>サーバー側 HTML 解析の品質は拡張機能版より控えめ (og:image / og:title 中心)</li>
+        <li>JS で動的描画される SPA ページは情報が取れない</li>
+        <li>寸法を自動抽出できない場合があるので、必要なら手動入力欄を使う</li>
+        <li>3D 生成は <code>MODEL_PROVIDER</code> 設定に従う (デフォルト Tripo 有料 / 無料は Colab+TRELLIS)</li>
+      </ul>
+      <h2>API として使うとき</h2>
+      <pre style="background:#1a1a1a; color:#7eb6c4; padding:12px; border-radius:6px; overflow-x:auto; font-size:12px">curl -X POST http://localhost:3000/api/process-url \
+  -H "Content-Type: application/json" \
+  -d '{"url":"https://www.nitori-net.jp/ec/product/12345/"}'</pre>
+    </div>
+  </div>
+
+  <script>
+  const API_BASE = "/api";
+  const POLL_INTERVAL_MS = 1500;
+  const POLL_TIMEOUT_MS = 5 * 60 * 1000;
+
+  // ===== タブ =====
+  document.querySelectorAll(".tab").forEach(t => {
+    t.addEventListener("click", () => {
+      document.querySelectorAll(".tab").forEach(x => x.classList.remove("active"));
+      document.querySelectorAll(".tab-panel").forEach(x => x.classList.remove("active"));
+      t.classList.add("active");
+      document.querySelector(`[data-tab-panel="${t.dataset.tab}"]`).classList.add("active");
+      if (t.dataset.tab === "history") loadHistory();
+    });
+  });
+
+  // ===== バックエンド疎通確認 =====
+  fetch(API_BASE + "/../health").then(r => r.json()).then(j => {
+    document.getElementById("versionBadge").textContent = j.status === "ok" ? "● connected" : "● degraded";
+  }).catch(() => {
+    document.getElementById("versionBadge").textContent = "✕ backend not running";
+    document.getElementById("versionBadge").style.color = "#c0392b";
+  });
+
+  // ===== URL 入力検証 =====
+  const SUPPORTED = ["nitori-net.jp", "ikea.com", "muji.com", "amazon.co.jp",
+                     "rakuten.co.jp", "low-ya.com", "cainz.com", "otsuka-kagu.co.jp"];
+
+  function classifyUrl(url) {
+    const s = (url || "").trim();
+    if (!s) return { class: "", text: "" };
+    if (!/^https?:\/\//.test(s)) return { class: "error", text: "URL は http:// または https:// で始まる必要があります" };
+    let u;
+    try { u = new URL(s); } catch (_) { return { class: "error", text: "URL の形式が不正です" }; }
+    if (SUPPORTED.some(d => u.hostname.includes(d))) {
+      return { class: "ok", text: "✓ 対応サイト" };
+    }
+    return { class: "warning", text: "対応外サイトです。og:image / og:title 頼みの抽出になります" };
+  }
+
+  const singleUrl = document.getElementById("singleUrl");
+  const singleUrlHint = document.getElementById("singleUrlHint");
+  singleUrl.addEventListener("input", () => {
+    const r = classifyUrl(singleUrl.value);
+    singleUrlHint.className = "hint " + r.class;
+    singleUrlHint.textContent = r.text;
+    singleUrl.classList.toggle("invalid", r.class === "error");
+  });
+
+  // ===== 単発投入 =====
+  const submitBtn = document.getElementById("submitBtn");
+  const singleStatus = document.getElementById("singleStatus");
+  const singleProgress = document.getElementById("singleProgress");
+  const singleBar = document.getElementById("singleBar");
+  const singlePreview = document.getElementById("singlePreview");
+  const uploadHomestylerBtn = document.getElementById("uploadHomestylerBtn");
+
+  function setSingleStatus(text, type = "info") {
+    singleStatus.style.display = "block";
+    singleStatus.textContent = text;
+    singleStatus.className = "status-line " + type;
+  }
+  function setProgress(idx, total, state = "") {
+    singleProgress.classList.add("visible");
+    const pct = total > 0 ? Math.min(100, (idx / total) * 100) : 0;
+    singleBar.style.width = pct + "%";
+    singleProgress.classList.remove("success", "error");
+    if (state) singleProgress.classList.add(state);
+  }
+
+  let lastJobId = null;
+
+  async function pollJob(jobId, onProgress) {
+    const start = Date.now();
+    while (Date.now() - start < POLL_TIMEOUT_MS) {
+      const r = await fetch(API_BASE + "/status/" + jobId);
+      if (!r.ok) throw new Error("status fetch failed: " + r.status);
+      const job = await r.json();
+      if (onProgress) onProgress(job);
+      if (job.status === "success") return job;
+      if (job.status === "error") {
+        const e = new Error(job.error || "サーバーエラー");
+        e.code = job.error_code; throw e;
+      }
+      if (job.status === "cancelled") throw new Error("キャンセルされました");
+      await new Promise(r => setTimeout(r, POLL_INTERVAL_MS));
+    }
+    throw new Error("タイムアウト");
+  }
+
+  submitBtn.addEventListener("click", async () => {
+    const url = singleUrl.value.trim();
+    if (classifyUrl(url).class === "error" || !url) {
+      setSingleStatus("URL が不正です", "error"); return;
+    }
+    submitBtn.disabled = true;
+    singlePreview.style.display = "none";
+    uploadHomestylerBtn.style.display = "none";
+    lastJobId = null;
+
+    const dims = {};
+    const w = parseFloat(document.getElementById("dimW").value);
+    const d = parseFloat(document.getElementById("dimD").value);
+    const h = parseFloat(document.getElementById("dimH").value);
+    if (!isNaN(w) && w > 0) dims.width_cm = w;
+    if (!isNaN(d) && d > 0) dims.depth_cm = d;
+    if (!isNaN(h) && h > 0) dims.height_cm = h;
+
+    setSingleStatus("URL から商品情報を抽出中...", "info");
+    setProgress(0, 1);
+
+    try {
+      const r = await fetch(API_BASE + "/process-url", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url, dimensions: Object.keys(dims).length ? dims : null }),
+      });
+      if (!r.ok) {
+        const err = await r.json().catch(() => ({}));
+        throw new Error(err.detail || "HTTP " + r.status);
+      }
+      const { job_id, extracted } = await r.json();
+      lastJobId = job_id;
+      setSingleStatus(`抽出成功: "${extracted.product_name}" (画像 ${extracted.images} 枚)\nジョブ ${job_id} 起動中...`, "info");
+
+      const job = await pollJob(job_id, j => {
+        setSingleStatus(j.message || j.status, "info");
+        setProgress(j.step_index, j.total_steps);
+      });
+      setProgress(job.total_steps, job.total_steps, "success");
+      const glb = (job.result?.glb || "").split("/").pop();
+      setSingleStatus(`✅ 完了! GLB: ${glb}`, "success");
+      if (glb) {
+        singlePreview.style.display = "block";
+        singlePreview.innerHTML = `<a href="/output/${encodeURIComponent(glb)}" target="_blank" style="color:#7eb6c4">📦 ${glb} をダウンロード</a>`;
+      }
+      uploadHomestylerBtn.style.display = "inline-block";
+    } catch (e) {
+      setSingleStatus("エラー: " + e.message, "error");
+      setProgress(0, 1, "error");
+    } finally {
+      submitBtn.disabled = false;
+    }
+  });
+
+  uploadHomestylerBtn.addEventListener("click", async () => {
+    if (!lastJobId) return;
+    uploadHomestylerBtn.disabled = true;
+    setSingleStatus("Homestyler にアップロード中...", "info");
+    try {
+      const r = await fetch(API_BASE + "/jobs/" + lastJobId + "/upload-to-homestyler", { method: "POST" });
+      if (!r.ok) throw new Error("HTTP " + r.status);
+      const job = await pollJob(lastJobId, j => setSingleStatus(j.message, "info"));
+      setSingleStatus(`✅ Homestyler 登録完了: ${job.result?.product || ""}`, "success");
+      uploadHomestylerBtn.style.display = "none";
+    } catch (e) {
+      setSingleStatus("Homestyler 失敗: " + e.message, "error");
+      uploadHomestylerBtn.disabled = false;
+    }
+  });
+
+  // ===== 一括投入 =====
+  const bulkSubmitBtn = document.getElementById("bulkSubmitBtn");
+  const bulkStatus = document.getElementById("bulkStatus");
+
+  bulkSubmitBtn.addEventListener("click", async () => {
+    const urls = document.getElementById("bulkUrls").value
+      .split("\n").map(s => s.trim()).filter(s => /^https?:\/\//.test(s));
+    if (urls.length === 0) {
+      bulkStatus.style.display = "block";
+      bulkStatus.className = "status-line error";
+      bulkStatus.textContent = "有効な URL がありません";
+      return;
+    }
+    bulkSubmitBtn.disabled = true;
+    let ok = 0, fail = 0;
+    bulkStatus.style.display = "block";
+    bulkStatus.className = "status-line info";
+    for (let i = 0; i < urls.length; i++) {
+      bulkStatus.textContent = `[${i+1}/${urls.length}] ${urls[i].slice(0,60)}...`;
+      try {
+        const r = await fetch(API_BASE + "/process-url", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ url: urls[i] }),
+        });
+        if (r.ok) ok++; else fail++;
+      } catch (_) { fail++; }
+    }
+    bulkStatus.className = "status-line " + (fail === 0 ? "success" : "error");
+    bulkStatus.textContent = `完了: 成功 ${ok} / 失敗 ${fail}`;
+    bulkSubmitBtn.disabled = false;
+  });
+
+  // ===== 履歴 =====
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"})[c]);
+  }
+  function timeAgo(ts) {
+    const d = Date.now()/1000 - ts;
+    if (d < 60) return `${Math.floor(d)}秒前`;
+    if (d < 3600) return `${Math.floor(d/60)}分前`;
+    if (d < 86400) return `${Math.floor(d/3600)}時間前`;
+    return `${Math.floor(d/86400)}日前`;
+  }
+  async function loadHistory() {
+    const list = document.getElementById("historyList");
+    list.innerHTML = '<li class="history-item"><span class="history-name">読み込み中...</span></li>';
+    try {
+      const r = await fetch(API_BASE + "/jobs?limit=30");
+      const { jobs } = await r.json();
+      if (!jobs.length) {
+        list.innerHTML = '<li class="history-item"><span class="history-name">まだジョブがありません</span></li>';
+        return;
+      }
+      list.innerHTML = jobs.map(j => `
+        <li class="history-item">
+          <span class="badge ${j.status}">${j.status}</span>
+          <span class="history-name">${escapeHtml(j.product_name)}</span>
+          <span class="history-meta">${timeAgo(j.created_at)} · ${j.step_index}/${j.total_steps}</span>
+        </li>
+      `).join("");
+    } catch (e) {
+      list.innerHTML = `<li class="history-item"><span class="history-name" style="color:#c0392b">読み込み失敗: ${escapeHtml(e.message)}</span></li>`;
+    }
+  }
+  document.getElementById("refreshHistoryBtn").addEventListener("click", loadHistory);
+  </script>
+</body>
+</html>

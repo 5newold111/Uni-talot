@@ -10,6 +10,7 @@ from services.image_downloader import download_main_image
 from services.job_manager import jobs
 from services.model_generator import generate_3d_model
 from services.scale_correction import apply_real_scale
+from services.url_scraper import scrape_product_url
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -200,6 +201,57 @@ async def process_product(data: ProductData, background_tasks: BackgroundTasks):
     job = await jobs.create(data.product_name)
     background_tasks.add_task(_run_pipeline, job.id, data)
     return {"job_id": job.id, "status": job.status}
+
+
+class ProcessUrlRequest(BaseModel):
+    url: HttpUrl
+    dimensions: dict[str, float] | None = None
+    category: str | None = None
+
+
+@router.post("/process-url", status_code=202)
+async def process_url(req: ProcessUrlRequest, background_tasks: BackgroundTasks):
+    """サーバー側で URL をフェッチ → 商品情報を抽出 → パイプライン投入。
+
+    Chrome 拡張機能なしで使えるエントリーポイント (Web UI / curl から呼ぶ用)。
+    抽出品質は最小限なので、拡張機能版に比べて寸法や材質情報が不足することがある。
+    寸法をクライアント側で知っている場合は dimensions に渡すと上書きされる。"""
+    try:
+        data_dict = await scrape_product_url(str(req.url))
+    except PipelineError:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"スクレイピング失敗: {e}") from e
+
+    # クライアントが寸法を上書き指定していたら反映
+    if req.dimensions:
+        data_dict["dimensions"] = {**data_dict.get("dimensions", {}), **req.dimensions}
+    if req.category:
+        data_dict["category"] = req.category
+
+    if not data_dict.get("images"):
+        raise HTTPException(
+            status_code=422,
+            detail="このページからは商品画像を抽出できませんでした (og:image / img タグ無し)。"
+            "拡張機能版を試してください",
+        )
+
+    try:
+        data = ProductData(**data_dict)
+    except Exception as e:
+        raise HTTPException(status_code=422, detail=f"抽出データが不正: {e}") from e
+
+    job = await jobs.create(data.product_name)
+    background_tasks.add_task(_run_pipeline, job.id, data)
+    return {
+        "job_id": job.id,
+        "status": job.status,
+        "extracted": {
+            "product_name": data.product_name,
+            "images": len(data.images),
+            "dimensions": data.dimensions,
+        },
+    }
 
 
 @router.post("/jobs/{job_id}/upload-to-homestyler", status_code=202)

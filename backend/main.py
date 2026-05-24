@@ -53,6 +53,12 @@ app.include_router(process_router, prefix="/api")
 os.makedirs("output", exist_ok=True)
 app.mount("/output", StaticFiles(directory="output"), name="output")
 
+# スタンドアロン Web UI (Chrome 拡張機能なしで URL を貼り付けて使える)
+# http://localhost:3000/ui/ でアクセス
+_ui_dir = os.path.join(os.path.dirname(__file__), "ui")
+if os.path.isdir(_ui_dir):
+    app.mount("/ui", StaticFiles(directory=_ui_dir, html=True), name="ui")
+
 
 @app.get("/health")
 async def health():
