@@ -152,7 +152,9 @@ async def test_tripo_error_message_does_not_leak_response_body(tmp_path, monkeyp
     """Tripo が API key を含むエラーレスポンスを返した場合でも、
     PipelineError.message には生のレスポンス本文が含まれないこと。"""
 
-    monkeypatch.setattr(model_generator, "FAL_KEY", "test-key")
+    monkeypatch.setenv("MODEL_PROVIDER", "tripo")
+    monkeypatch.setenv("FAL_API_KEY", "test-key")
+    monkeypatch.setattr(model_generator, "FAL_KEY", "test-key")  # 後方互換
     monkeypatch.chdir(tmp_path)
 
     # Tripo がトークン込みの sensitive な内容を返したと想定

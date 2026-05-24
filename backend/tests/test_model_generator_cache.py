@@ -15,7 +15,10 @@ from services.model_generator import generate_3d_model
 @pytest.fixture(autouse=True)
 def chdir_tmp(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
-    monkeypatch.setattr(model_generator, "FAL_KEY", "test-key-not-placeholder")
+    # v2.2: プロバイダーは env から API キーを読むので env を直接設定する
+    monkeypatch.setenv("MODEL_PROVIDER", "tripo")
+    monkeypatch.setenv("FAL_API_KEY", "test-key-not-placeholder")
+    monkeypatch.setattr(model_generator, "FAL_KEY", "test-key-not-placeholder")  # 後方互換
     yield
 
 
@@ -78,19 +81,26 @@ async def test_different_image_different_cache_key(tmp_path):
     assert api_route.call_count == 2
 
 
-async def test_missing_api_key_raises(fake_image, monkeypatch):
+async def test_missing_api_key_raises(tmp_path, monkeypatch):
     from services.errors import ErrorCode, PipelineError
 
-    monkeypatch.setattr(model_generator, "FAL_KEY", "")
+    # キャッシュも当たらないように別の画像
+    img = tmp_path / "missing_key.jpg"
+    img.write_bytes(b"\xff\xd8" + b"unique-content-for-missing-key-test")
+    monkeypatch.setenv("MODEL_PROVIDER", "tripo")
+    monkeypatch.setenv("FAL_API_KEY", "")
     with pytest.raises(PipelineError) as exc:
-        await generate_3d_model(fake_image)
+        await generate_3d_model(str(img))
     assert exc.value.code == ErrorCode.MODEL_API_KEY_MISSING
 
 
-async def test_placeholder_api_key_raises(fake_image, monkeypatch):
+async def test_placeholder_api_key_raises(tmp_path, monkeypatch):
     from services.errors import ErrorCode, PipelineError
 
-    monkeypatch.setattr(model_generator, "FAL_KEY", "your_fal_api_key_here")
+    img = tmp_path / "placeholder_key.jpg"
+    img.write_bytes(b"\xff\xd8" + b"unique-content-for-placeholder-test")
+    monkeypatch.setenv("MODEL_PROVIDER", "tripo")
+    monkeypatch.setenv("FAL_API_KEY", "your_fal_api_key_here")
     with pytest.raises(PipelineError) as exc:
-        await generate_3d_model(fake_image)
+        await generate_3d_model(str(img))
     assert exc.value.code == ErrorCode.MODEL_API_KEY_MISSING

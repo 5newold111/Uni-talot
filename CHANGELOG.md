@@ -6,6 +6,39 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and thi
 
 ## [Unreleased]
 
+## [2.2.0] - 2026-05-22
+
+### Added — 完全無料運用パスを実装 (ADR-006)
+- **ModelProvider 抽象化**: `services/model_providers.py` に 3 プロバイダー
+  - `tripo` (default, 有料、既存実装)
+  - `colab_trellis` (**完全無料**、Google Colab で TRELLIS をホスト)
+  - `hf_space` (スタブ、将来拡張)
+- 環境変数 `MODEL_PROVIDER` で切替。`MODEL_PROVIDER=colab_trellis` + `TRELLIS_COLAB_URL=https://xxx.ngrok-free.app` の 2 行で**完全無料運用**に切替可能
+- `docs/trellis_colab.ipynb`: Google Colab T4 GPU で TRELLIS を起動 + ngrok でトンネル
+  公開する notebook。週 1 回起動するだけで月 50 個以上の 3D 生成が完全無料
+- `services/model_generator.py` を抽象に委譲する形に書き換え。SHA-256 キャッシュは
+  どのプロバイダーでも有効
+
+### Tests (14 新規)
+- ファクトリーが MODEL_PROVIDER env で正しいクラスを返す (default / colab / 未知)
+- プロバイダー認証/URL 未設定の早期検出
+- ColabTrellisProvider が multipart で画像送信し GLB バイナリを受け取る
+- ngrok/Colab セッション切れ (502/503/404) を明示メッセージで検出
+- generate_3d_model のキャッシュがプロバイダー呼び出しを抑止
+
+### Docs
+- ADR-006: 3D 生成プロバイダーをプラグイン化
+- README に「無料運用パス (Colab + TRELLIS)」セクション (次回更新で追記予定)
+
+### Numbers
+- backend テスト: 154 → 168 (+14)
+- カバレッジ: 93.07% → 93.11%
+- 環境変数: 17 → 19 (`MODEL_PROVIDER`, `TRELLIS_COLAB_URL`)
+
+### Migration
+- 既存ユーザーはコード変更不要。`MODEL_PROVIDER` を設定しなければ tripo がデフォルトで動く
+- 無料化したい場合: docs/trellis_colab.ipynb を Colab で起動 → 表示された URL を .env に貼る
+
 ## [2.1.0] - 2026-05-22
 
 ### Added
