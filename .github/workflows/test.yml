@@ -52,7 +52,7 @@ jobs:
       - name: Install dependencies
         run: npm ci
       - name: Run tests
-        run: node --test tests/test_scraper.mjs tests/test_e2e_scraper.mjs tests/test_popup_utils.mjs
+        run: node --test tests/test_scraper.mjs tests/test_e2e_scraper.mjs tests/test_popup_utils.mjs tests/test_floating_button.mjs
 
   lint-backend:
     name: Backend lint (ruff)

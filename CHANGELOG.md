@@ -6,6 +6,43 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and thi
 
 ## [Unreleased]
 
+## [2.5.0] - 2026-05-24
+
+### Added — EC ページに「3D化」フローティングボタン
+- `extension/content_scripts/floating_button.js`: 対応 EC サイトの商品ページに
+  右下固定のフローティングアクションボタンを注入
+  - **Shadow DOM** で実装。ページ側 CSS の影響を受けず、こちらの CSS もページに漏らさない
+  - **z-index: 2147483647** で重なり問題回避
+  - 状態遷移: idle (青) → loading (パルス) → success (緑) / error (赤・再試行可)
+  - クリック 1 回で `extractProductData()` → `/api/process` → ステータスポーリングまで完結
+  - 進捗バーをボタン下に表示 (`step_index / total_steps`)
+  - 「×」で当該ページのみ非表示 (`chrome.storage.local` に永続化)
+  - 商品ページ判定 (h1 と img >= 3) があるので、検索結果やトップページには出ない
+  - 二重注入防止 (`#ec3d-bridge-fab-root` の ID チェック)
+- `extension/popup/index.html`: 新「設定」タブで FAB のグローバル on/off と
+  「このページでは非表示」リセットボタンを提供
+- `scraper.js`: `extractProductData` を `window` に公開し、FAB から呼べるよう
+
+### Tests (8 新規)
+- 商品ページなら FAB が DOM に注入される (Shadow DOM 含む)
+- 商品ページでないページ (h1 のみ / 画像少) には注入されない
+- `extractProductData` が window 公開されている
+- `ec3d_fab_disabled=true` で注入抑止
+- ページ単位 `ec3d_fab_dismissed:<host><path>=true` で当該ページのみ抑止
+- 同じスクリプト 2 回実行しても 1 つしか注入されない (idempotent)
+- Shadow DOM 内の `.fab` テキストにラベルと `×` ボタンが含まれる
+- manifest.json で scraper.js → floating_button.js の順序が保たれている
+
+### Metrics
+- extension テスト: 46 → 54 (+8)
+- 合計テスト: 234 → 242
+- マニフェスト version: 2.3.0 → 2.5.0
+
+### UX
+- popup を開かずに、商品ページから直接 1 クリックで 3D 化開始可能
+- FAB から発火しても通常の popup ジョブ履歴に載るので運用が一貫
+- 嫌なら設定で全体無効化、または「×」で個別非表示
+
 ## [2.4.0] - 2026-05-24
 
 ### Added — Chrome 拡張機能なしで使えるスタンドアロン Web UI

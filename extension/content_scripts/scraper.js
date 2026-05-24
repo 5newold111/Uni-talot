@@ -112,6 +112,12 @@ function parseColors(text) {
   return colorWords.filter(c => text.toLowerCase().includes(c.toLowerCase()));
 }
 
+// 同じ content_scripts コンテキスト内の他スクリプト (floating_button.js 等) からも
+// 呼べるよう、window に公開する。
+if (typeof window !== "undefined") {
+  window.extractProductData = extractProductData;
+}
+
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === "EXTRACT_PRODUCT") {
     try {

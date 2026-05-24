@@ -117,6 +117,7 @@
     <button class="tab active" data-tab="single">単発</button>
     <button class="tab" data-tab="bulk">一括</button>
     <button class="tab" data-tab="history">履歴</button>
+    <button class="tab" data-tab="settings">設定</button>
   </div>
 
   <!-- 単発 -->
@@ -152,6 +153,17 @@
     <textarea id="bulkUrls" placeholder="https://www.nitori-net.jp/ec/product/xxx/&#10;https://www.ikea.com/jp/ja/p/xxx/&#10;..."></textarea>
     <button id="bulkStartBtn" class="primary" style="margin-top:8px">一括投入を開始</button>
     <div id="bulkStatus"></div>
+  </div>
+
+  <!-- 設定 -->
+  <div class="tab-panel" data-tab-panel="settings">
+    <p class="small-muted">フローティングボタンを EC サイトのページに表示する/しないを切替できます。</p>
+    <label style="display:flex; align-items:center; gap:8px; margin: 12px 0; cursor:pointer;">
+      <input type="checkbox" id="fabEnabledToggle">
+      <span>ページにフローティングボタンを表示</span>
+    </label>
+    <p class="small-muted" id="fabStatus" style="margin-top:8px"></p>
+    <button id="fabResetDismissed" class="link" style="margin-top:14px">「このページでは非表示」をリセット</button>
   </div>
 
   <!-- 履歴 -->

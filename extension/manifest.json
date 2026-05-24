@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "EC3D-Bridge",
-  "version": "2.3.0",
-  "version_name": "2.3.0",
+  "version": "2.5.0",
+  "version_name": "2.5.0",
   "description": "ECサイトの商品を自動で3D化してHomestylerに登録するツール",
   "permissions": ["activeTab", "scripting", "storage", "tabs"],
   "host_permissions": [
@@ -41,7 +41,11 @@
         "https://*.cainz.com/*",
         "https://*.otsuka-kagu.co.jp/*"
       ],
-      "js": ["scrapers/site_configs.js", "content_scripts/scraper.js"],
+      "js": [
+        "scrapers/site_configs.js",
+        "content_scripts/scraper.js",
+        "content_scripts/floating_button.js"
+      ],
       "run_at": "document_idle"
     }
   ],

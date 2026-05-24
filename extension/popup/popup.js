@@ -393,3 +393,32 @@ async function loadHistory() {
   }
 }
 
+
+// ===== 設定タブ: フローティングボタン on/off =====
+const fabEnabledToggle = document.getElementById("fabEnabledToggle");
+const fabStatus = document.getElementById("fabStatus");
+const fabResetDismissed = document.getElementById("fabResetDismissed");
+
+if (fabEnabledToggle) {
+  chrome.storage.local.get(["ec3d_fab_disabled"], (r) => {
+    fabEnabledToggle.checked = !r.ec3d_fab_disabled;
+  });
+  fabEnabledToggle.addEventListener("change", () => {
+    chrome.storage.local.set({ ec3d_fab_disabled: !fabEnabledToggle.checked }, () => {
+      fabStatus.textContent = fabEnabledToggle.checked
+        ? "✓ フローティングボタンを表示します (新規ページから有効)"
+        : "✓ フローティングボタンを無効にしました";
+    });
+  });
+}
+
+if (fabResetDismissed) {
+  fabResetDismissed.addEventListener("click", () => {
+    chrome.storage.local.get(null, (all) => {
+      const toRemove = Object.keys(all).filter(k => k.startsWith("ec3d_fab_dismissed:"));
+      chrome.storage.local.remove(toRemove, () => {
+        fabStatus.textContent = `✓ ${toRemove.length} 件の「このページでは非表示」をリセット`;
+      });
+    });
+  });
+}
