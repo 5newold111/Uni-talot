@@ -117,3 +117,69 @@ test("statusBadgeClass: 未知は queued にフォールバック", () => {
   assert.equal(utils.statusBadgeClass(""), "queued");
   assert.equal(utils.statusBadgeClass(null), "queued");
 });
+
+// ===== isValidProductUrl =====
+
+test("isValidProductUrl: 有効な URL", () => {
+  assert.equal(utils.isValidProductUrl("https://www.nitori-net.jp/ec/product/123/"), true);
+  assert.equal(utils.isValidProductUrl("http://localhost:3000/x"), true);
+  assert.equal(utils.isValidProductUrl("https://example.com/"), true);
+});
+
+test("isValidProductUrl: 空・空白", () => {
+  assert.equal(utils.isValidProductUrl(""), false);
+  assert.equal(utils.isValidProductUrl("   "), false);
+  assert.equal(utils.isValidProductUrl(null), false);
+  assert.equal(utils.isValidProductUrl(undefined), false);
+});
+
+test("isValidProductUrl: 非 http スキームを拒否", () => {
+  assert.equal(utils.isValidProductUrl("javascript:alert(1)"), false);
+  assert.equal(utils.isValidProductUrl("data:text/html,<x>"), false);
+  assert.equal(utils.isValidProductUrl("file:///etc/passwd"), false);
+  assert.equal(utils.isValidProductUrl("ftp://example.com/"), false);
+});
+
+test("isValidProductUrl: ホスト名がないものを拒否", () => {
+  // "https://" だけはホストもパスも空 → パース失敗
+  assert.equal(utils.isValidProductUrl("https://"), false);
+  // 注: "http:///x" はブラウザ/Node の URL パーサーで hostname=x として
+  // 正規化されるため、ここでの validity チェックは通る (実際の DNS で失敗する)
+});
+
+test("isValidProductUrl: 前後空白は trim される", () => {
+  assert.equal(utils.isValidProductUrl("  https://example.com/  "), true);
+});
+
+// ===== isSupportedEcSite =====
+
+test("isSupportedEcSite: 全対応サイトを認識", () => {
+  const supported = [
+    "https://www.nitori-net.jp/ec/product/1/",
+    "https://www.ikea.com/jp/ja/p/x/",
+    "https://www.muji.com/jp/x",
+    "https://www.amazon.co.jp/dp/x",
+    "https://item.rakuten.co.jp/shop/x/",
+    "https://www.low-ya.com/products/x",
+    "https://www.cainz.com/product/x",
+    "https://www.otsuka-kagu.co.jp/x",
+  ];
+  for (const url of supported) {
+    assert.equal(utils.isSupportedEcSite(url), true, `${url} should be supported`);
+  }
+});
+
+test("isSupportedEcSite: サブドメイン違いも認識", () => {
+  assert.equal(utils.isSupportedEcSite("https://shop.rakuten.co.jp/store/x"), true);
+});
+
+test("isSupportedEcSite: 対応外サイトは false", () => {
+  assert.equal(utils.isSupportedEcSite("https://example.com/x"), false);
+  assert.equal(utils.isSupportedEcSite("https://amazon.com/dp/x"), false);  // .co.jp ではない
+});
+
+test("isSupportedEcSite: 不正な URL は false", () => {
+  assert.equal(utils.isSupportedEcSite("not-a-url"), false);
+  assert.equal(utils.isSupportedEcSite(""), false);
+  assert.equal(utils.isSupportedEcSite(null), false);
+});

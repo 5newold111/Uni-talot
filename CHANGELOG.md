@@ -6,6 +6,32 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and thi
 
 ## [Unreleased]
 
+## [2.3.0] - 2026-05-22
+
+### Added — 拡張機能で任意の URL を直接入力可能に
+- 単発タブに**ソースモード切替ラジオ** (`active` / `url`) を追加
+  - `active` (default): 開いているタブから商品情報を抽出 (既存挙動)
+  - `url`: 入力欄に貼った URL をバックグラウンドタブで開いて抽出 → 自動でタブを閉じる
+- URL 入力欄にリアルタイム検証:
+  - 形式不正 (`javascript:` 等) → 赤枠 + エラー文
+  - 対応 EC サイト → 「✓ 対応サイト」(緑)
+  - 対応外サイト → 「default セレクター頼みになります」(黄)
+- 共通ヘルパー `scrapeFromUrl(url)` を popup.js に追加。単発タブ URL モードと一括投入で共有
+- `popup_utils.js` に `isValidProductUrl()` / `isSupportedEcSite()` を追加 (テスト容易化)
+
+### Tests (16 新規)
+- `isValidProductUrl`: 有効/空白/非 http スキーム/ホスト名なし/trim の 5 ケース
+- `isSupportedEcSite`: 全 8 対応サイト/サブドメイン/対応外/不正 URL の 4 ケース
+
+### UX 改善
+- 「現在のタブ」モードは既存ユーザーの体験を維持 (デフォルト動作)
+- URL モードは「ブラウザで開かずに 1 件だけ処理したい」「Slack で送られた URL を直接処理したい」用途に対応
+- 入力ミス時はバックエンドに送る前に検出 → クレジット浪費防止
+
+### Metrics
+- extension テスト: 37 → 46 (+9)
+- 合計テスト: 205 → **214**
+
 ## [2.2.0] - 2026-05-22
 
 ### Added — 完全無料運用パスを実装 (ADR-006)

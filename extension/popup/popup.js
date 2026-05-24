@@ -57,8 +57,56 @@ const progressBar = document.getElementById("progressBar");
 const previewWrap = document.getElementById("previewWrap");
 const modelViewer = document.getElementById("modelViewer");
 const uploadHomestylerBtn = document.getElementById("uploadHomestylerBtn");
+const singleUrlInput = document.getElementById("singleUrlInput");
+const singleUrlHint = document.getElementById("singleUrlHint");
+const sourceModeRadios = document.querySelectorAll('input[name="sourceMode"]');
 
 let lastSuccessfulJobId = null;
+
+// ===== 単発タブ: ソースモード切替 =====
+function currentSourceMode() {
+  return Array.from(sourceModeRadios).find(r => r.checked)?.value || "active";
+}
+
+function updateSingleModeUI() {
+  const mode = currentSourceMode();
+  if (mode === "url") {
+    singleUrlInput.style.display = "block";
+    validateSingleUrlInput();
+  } else {
+    singleUrlInput.style.display = "none";
+    singleUrlHint.style.display = "none";
+    singleUrlInput.classList.remove("invalid");
+  }
+}
+
+function validateSingleUrlInput() {
+  const url = singleUrlInput.value.trim();
+  if (!url) {
+    singleUrlHint.style.display = "none";
+    singleUrlInput.classList.remove("invalid");
+    return;
+  }
+  if (!isValidProductUrl(url)) {
+    singleUrlHint.textContent = "URL の形式が正しくありません (http:// または https:// で始まる必要)";
+    singleUrlHint.className = "url-hint error";
+    singleUrlHint.style.display = "block";
+    singleUrlInput.classList.add("invalid");
+    return;
+  }
+  singleUrlInput.classList.remove("invalid");
+  if (!isSupportedEcSite(url)) {
+    singleUrlHint.textContent = "対応EC外サイトです。商品情報の抽出は default セレクター頼みになります";
+    singleUrlHint.className = "url-hint warning";
+  } else {
+    singleUrlHint.textContent = "✓ 対応サイト";
+    singleUrlHint.className = "url-hint ok";
+  }
+  singleUrlHint.style.display = "block";
+}
+
+sourceModeRadios.forEach(r => r.addEventListener("change", updateSingleModeUI));
+singleUrlInput.addEventListener("input", validateSingleUrlInput);
 
 function setStatus(message, type = "") {
   statusDiv.textContent = message;
@@ -90,6 +138,18 @@ function showPreview(glbFilename) {
   modelViewer.setAttribute("src", url);
 }
 
+async function waitForTabComplete(tabId) {
+  return new Promise(resolve => {
+    const listener = (updatedId, info) => {
+      if (updatedId === tabId && info.status === "complete") {
+        chrome.tabs.onUpdated.removeListener(listener);
+        resolve();
+      }
+    };
+    chrome.tabs.onUpdated.addListener(listener);
+  });
+}
+
 async function getProductDataFromActiveTab(tabId) {
   try {
     const response = await chrome.tabs.sendMessage(tabId, { type: "EXTRACT_PRODUCT" });
@@ -104,6 +164,23 @@ async function getProductDataFromActiveTab(tabId) {
     throw new Error(response?.error || "商品情報の取得に失敗しました");
   }
   return response.data;
+}
+
+/**
+ * 任意の URL をバックグラウンドタブで開いてスクレイプし、結果取得後にタブを閉じる。
+ * 単発タブの URL モードと一括投入で共有する。
+ */
+async function scrapeFromUrl(url) {
+  if (!isValidProductUrl(url)) {
+    throw new Error(`URL の形式が不正: ${url}`);
+  }
+  const tab = await chrome.tabs.create({ url, active: false });
+  try {
+    await waitForTabComplete(tab.id);
+    return await getProductDataFromActiveTab(tab.id);
+  } finally {
+    try { await chrome.tabs.remove(tab.id); } catch (_) {}
+  }
 }
 
 async function pollJob(jobId, onProgress) {
@@ -136,8 +213,19 @@ btn.addEventListener("click", async () => {
   await loadErrorGuidance();
 
   try {
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    const productData = await getProductDataFromActiveTab(tab.id);
+    let productData;
+    const mode = currentSourceMode();
+    if (mode === "url") {
+      const url = singleUrlInput.value.trim();
+      if (!isValidProductUrl(url)) {
+        throw new Error("URL を入力してください (http:// または https://)");
+      }
+      setStatus(`[準備中] ${url.slice(0, 60)} を開いて商品情報を抽出しています...`);
+      productData = await scrapeFromUrl(url);
+    } else {
+      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+      productData = await getProductDataFromActiveTab(tab.id);
+    }
     if (!productData.product_name) {
       throw new Error("商品名が取得できませんでした");
     }
@@ -228,18 +316,6 @@ function setBulkStatus(msg, type = "") {
   bulkStatusDiv.className = type;
 }
 
-async function waitForTabComplete(tabId) {
-  return new Promise(resolve => {
-    const listener = (updatedId, info) => {
-      if (updatedId === tabId && info.status === "complete") {
-        chrome.tabs.onUpdated.removeListener(listener);
-        resolve();
-      }
-    };
-    chrome.tabs.onUpdated.addListener(listener);
-  });
-}
-
 bulkBtn.addEventListener("click", async () => {
   const urls = parseBulkUrls(bulkUrlsTA.value);
   if (urls.length === 0) {
@@ -252,12 +328,8 @@ bulkBtn.addEventListener("click", async () => {
     const url = urls[i];
     setBulkStatus(`[${i + 1}/${urls.length}] ${url.slice(0, 50)}... を処理中`);
     try {
-      const tab = await chrome.tabs.create({ url, active: false });
-      await waitForTabComplete(tab.id);
-      const data = await getProductDataFromActiveTab(tab.id);
-      await chrome.tabs.remove(tab.id);
+      const data = await scrapeFromUrl(url);
       if (!data.product_name) throw new Error("商品データ取得失敗");
-
       const r = await apiFetch("/process", {
         method: "POST",
         headers: { "Content-Type": "application/json" },

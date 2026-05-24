@@ -41,6 +41,19 @@
       font-family: monospace; font-size: 12px; border: 1px solid #c4cad2;
       border-radius: 4px; resize: vertical;
     }
+    /* 単発タブの URL モード */
+    .source-mode { display: flex; gap: 14px; font-size: 12px; margin-bottom: 8px; color: #555; }
+    .source-mode label { cursor: pointer; }
+    .url-input {
+      width: 100%; box-sizing: border-box; padding: 8px;
+      font-family: monospace; font-size: 12px; border: 1px solid #c4cad2;
+      border-radius: 4px; margin-bottom: 8px;
+    }
+    .url-input.invalid { border-color: #c0392b; background: #fdf3f3; }
+    .url-hint { font-size: 11px; margin-bottom: 8px; color: #888; }
+    .url-hint.error { color: #c0392b; }
+    .url-hint.warning { color: #b07a16; }
+    .url-hint.ok { color: #1d6e35; }
 
     /* ステータス */
     #status, #bulkStatus {
@@ -108,6 +121,20 @@
 
   <!-- 単発 -->
   <div class="tab-panel active" data-tab-panel="single">
+    <!-- 入力ソース切替: アクティブタブ or URL 指定 -->
+    <div class="source-mode">
+      <label><input type="radio" name="sourceMode" value="active" checked> 開いているタブから取得</label>
+      <label><input type="radio" name="sourceMode" value="url"> URL を指定して取得</label>
+    </div>
+    <input
+      type="url"
+      id="singleUrlInput"
+      class="url-input"
+      placeholder="https://www.nitori-net.jp/ec/product/xxx/"
+      style="display:none"
+    />
+    <div id="singleUrlHint" class="url-hint" style="display:none"></div>
+
     <button id="startBtn" class="primary">この商品を3D化</button>
     <div id="status">商品ページを開いてボタンを押してください</div>
     <div class="progress" id="progress"><div class="bar" id="progressBar"></div></div>

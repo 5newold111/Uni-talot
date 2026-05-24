@@ -37,6 +37,46 @@ function parseBulkUrls(text) {
 }
 
 /**
+ * 1 つの URL の文字列としての妥当性を判定。
+ *   - http:// または https:// で始まる
+ *   - URL コンストラクタでパース可能 (ホスト名がある)
+ * フォーム入力のリアルタイム検証 / 単発タブの URL モードで使う。
+ */
+function isValidProductUrl(url) {
+  const s = String(url || "").trim();
+  if (!/^https?:\/\//.test(s)) return false;
+  try {
+    const u = new URL(s);
+    return Boolean(u.hostname && u.hostname.length > 0);
+  } catch (_) {
+    return false;
+  }
+}
+
+/**
+ * URL のホスト名が、対応 EC サイトのいずれかに一致するか判定。
+ * 拡張機能の host_permissions と整合させる。
+ */
+function isSupportedEcSite(url) {
+  const SUPPORTED = [
+    "nitori-net.jp",
+    "ikea.com",
+    "muji.com",
+    "amazon.co.jp",
+    "rakuten.co.jp",
+    "low-ya.com",
+    "cainz.com",
+    "otsuka-kagu.co.jp",
+  ];
+  try {
+    const u = new URL(url);
+    return SUPPORTED.some(domain => u.hostname.includes(domain));
+  } catch (_) {
+    return false;
+  }
+}
+
+/**
  * ジョブ status を popup の CSS バッジクラス名に変換。
  */
 function statusBadgeClass(status) {
@@ -46,5 +86,12 @@ function statusBadgeClass(status) {
 
 // Node (CommonJS) と Browser 両対応の export
 if (typeof module !== "undefined" && module.exports) {
-  module.exports = { timeAgo, escapeHtml, parseBulkUrls, statusBadgeClass };
+  module.exports = {
+    timeAgo,
+    escapeHtml,
+    parseBulkUrls,
+    isValidProductUrl,
+    isSupportedEcSite,
+    statusBadgeClass,
+  };
 }
