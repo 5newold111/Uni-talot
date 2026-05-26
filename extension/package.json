@@ -1,0 +1,12 @@
+{
+  "name": "ec3d-bridge-extension",
+  "version": "1.0.0",
+  "description": "EC3D-Bridge Chrome extension",
+  "private": true,
+  "scripts": {
+    "test": "node --test tests/"
+  },
+  "devDependencies": {
+    "jsdom": "^25.0.1"
+  }
+}

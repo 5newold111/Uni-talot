@@ -1,0 +1,99 @@
+name: Test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  backend:
+    name: Backend (pytest)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: backend/requirements-dev.txt
+      - name: Install Blender (for integration tests)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y blender python3-numpy
+      - name: Install Python dependencies
+        run: pip install -r requirements-dev.txt
+      - name: Run pytest with coverage
+        run: pytest tests/ -v --cov --cov-report=xml --cov-report=term
+      - name: Upload coverage XML
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-xml
+          path: backend/coverage.xml
+          if-no-files-found: ignore
+
+  extension:
+    name: Extension (node --test)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: extension
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: extension/package-lock.json
+      - name: Install dependencies
+        run: npm ci
+      - name: Run tests
+        run: node --test tests/test_scraper.mjs tests/test_e2e_scraper.mjs tests/test_popup_utils.mjs tests/test_floating_button.mjs
+
+  lint-backend:
+    name: Backend lint (ruff)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install ruff
+      - run: ruff check .
+      - run: ruff format --check .
+
+  lint-manifest:
+    name: Lint manifest.json
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate JSON
+        run: python -c "import json; json.load(open('extension/manifest.json'))"
+
+  openapi-snapshot:
+    name: OpenAPI snapshot drift check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+      - run: pip install -r backend/requirements.txt
+      - name: Regenerate openapi.json
+        working-directory: backend
+        run: python scripts/dump_openapi.py
+      - name: Verify no drift
+        run: |
+          if ! git diff --exit-code docs/openapi.json; then
+            echo "::error::docs/openapi.json is out of date. Run 'python backend/scripts/dump_openapi.py' and commit."
+            exit 1
+          fi
