@@ -6,6 +6,29 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and thi
 
 ## [Unreleased]
 
+## [2.5.1] - 2026-05-26
+
+### Fixed — IKEA など SPA サイトで FAB が表示されない不具合
+- `extension/content_scripts/floating_button.js`:
+  - **looksLikeProductPage() を SITE_CONFIGS.images セレクタベースに変更**。
+    既知 EC サイトでは PDP 専用画像クラス (`.pip-media-grid img` 等) がマッチ
+    した時のみ商品ページとみなす。ヘッダーロゴでは反応しない。
+  - **MutationObserver で SPA hydration を最大 8 秒待機**。React 系の遅延描画
+    (IKEA, MUJI 等) で `document_idle` 時点に DOM がスケルトンでも、ハイドレ
+    ーション後に自動的に注入されるようになった。
+- `extension/scrapers/site_configs.js`:
+  - IKEA セレクタを実 DOM 構造に追従。`h1.pip-header-section__title__label`
+    (span ラッパーも) / `picture img.pip-image` / `.pip-aspect-ratio-image img`
+    を追加。
+- `extension/tests/test_floating_button.mjs`:
+  - IKEA スケルトン → hydration の MutationObserver 動作確認
+  - hydration 済み IKEA ページの即時注入
+  - IKEA selector による商品名・画像抽出
+  - 未知ホストで observer を仕掛けないことの確認 (4 ケース追加)
+- `backend/tests/test_url_scraper.py`:
+  - 実 URL (SODERHAMN コンパクト 3 人掛けソファ) を模した HTML fixture で
+    `/api/process-url` を E2E 検証 (寸法 W198×D99×H83cm の抽出含む)
+
 ## [2.5.0] - 2026-05-24
 
 ### Added — EC ページに「3D化」フローティングボタン

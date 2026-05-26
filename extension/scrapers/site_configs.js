@@ -13,11 +13,13 @@ const SITE_CONFIGS = {
   },
 
   "ikea.com": {
-    name:        "[data-testid='product-title'], h1.pip-header-section__title",
-    images:      ".pip-media-grid img, [data-testid='product-image'] img",
-    description: ".pip-product-details, [data-testid='product-description']",
-    dimensions:  "[data-testid='product-dimensions'], .pip-product-dimensions",
-    material:    "[data-testid='product-details']",
+    // IKEA は React SPA。h1 のクラスは pip-header-section__title__label (子) が実体。
+    // 古い構造の pip-header-section__title と data-testid も予備として残す。
+    name:        "h1.pip-header-section__title__label, span.pip-header-section__title__label, h1.pip-header-section__title, [data-testid='product-title'], h1",
+    images:      ".pip-media-grid img, .pip-aspect-ratio-image img, picture img.pip-image, [data-testid='product-image'] img",
+    description: ".pip-product-details, [data-testid='product-description'], .pip-product-summary__description",
+    dimensions:  "[data-testid='product-dimensions'], .pip-product-dimensions, .pip-product-dimensions__measurement-container",
+    material:    "[data-testid='product-details'], .pip-product-details__container",
   },
 
   "muji.com": {

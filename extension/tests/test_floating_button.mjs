@@ -141,6 +141,89 @@ test("FAB: Shadow DOM 内 .fab のテキストにラベルが含まれる", () =
   assert.ok(root.shadowRoot.querySelector(".close"), "× ボタンがない");
 });
 
+// ===== IKEA (SPA / hydration 遅延) 対応 =====
+
+// IKEA の初期 HTML: hydration 前で h1 もメイン画像もまだ存在しない
+const IKEA_SKELETON_HTML = `
+<!DOCTYPE html>
+<html><head><title>IKEA - SODERHAMN</title></head>
+<body>
+  <div id="root">
+    <header><img src="https://example.com/logo.svg" alt="logo"></header>
+  </div>
+</body></html>`;
+
+// IKEA hydration 後の DOM (React が描画した状態)
+const IKEA_HYDRATED_FRAGMENT = `
+  <main class="pip-temp-product-information-section">
+    <h1 class="pip-header-section__title">
+      <span class="pip-header-section__title__label">SÖDERHAMN ソーデルハムン</span>
+    </h1>
+    <div class="pip-media-grid">
+      <picture><img class="pip-image" src="https://www.ikea.com/jp/ja/images/products/soederhamn-1.jpg"></picture>
+      <picture><img class="pip-image" src="https://www.ikea.com/jp/ja/images/products/soederhamn-2.jpg"></picture>
+      <picture><img class="pip-image" src="https://www.ikea.com/jp/ja/images/products/soederhamn-3.jpg"></picture>
+    </div>
+  </main>
+`;
+
+function loadFabRaw(html, hostname, storage = {}) {
+  const dom = new JSDOM(html, {
+    url: `https://${hostname}/jp/ja/p/soederhamn-compact-3-seat-sofa-viarp-beige-brown-s29419422/`,
+    runScripts: "outside-only",
+    pretendToBeVisual: true,
+  });
+  dom.window.eval(CHROME_STUB(storage) + SITE_CONFIGS_JS + "\n" + SCRAPER_JS + "\n" + FAB_JS);
+  dom.window.document.dispatchEvent(new dom.window.Event("DOMContentLoaded"));
+  return dom;
+}
+
+test("FAB(IKEA): 初期 DOM がスケルトンでも MutationObserver で hydration 後に注入される", async () => {
+  const dom = loadFabRaw(IKEA_SKELETON_HTML, "www.ikea.com");
+
+  // hydration 前の段階では FAB は未注入のはず
+  assert.equal(dom.window.document.getElementById("ec3d-bridge-fab-root"), null,
+    "hydration 前なのに FAB が注入されている");
+
+  // React がコンテンツを描画する状況をシミュレート
+  const root = dom.window.document.getElementById("root");
+  root.insertAdjacentHTML("beforeend", IKEA_HYDRATED_FRAGMENT);
+
+  // MutationObserver の debounce (300ms) + 余裕を待つ
+  await new Promise((r) => dom.window.setTimeout(r, 500));
+
+  const fabRoot = dom.window.document.getElementById("ec3d-bridge-fab-root");
+  assert.ok(fabRoot, "hydration 後に FAB が注入されていない (MutationObserver が動いていない)");
+  assert.ok(fabRoot.shadowRoot.querySelector(".fab"), "Shadow DOM に .fab が無い");
+});
+
+test("FAB(IKEA): hydration 済みページなら即座に注入される (img>=1 で OK)", () => {
+  const html = `<!DOCTYPE html><html><body><div id="root">${IKEA_HYDRATED_FRAGMENT}</div></body></html>`;
+  const dom = loadFabRaw(html, "www.ikea.com");
+  const fabRoot = dom.window.document.getElementById("ec3d-bridge-fab-root");
+  assert.ok(fabRoot, "hydration 済み IKEA ページで FAB が注入されない");
+});
+
+test("FAB(IKEA): site_configs.js の IKEA name セレクタで h1 がヒットする", () => {
+  const html = `<!DOCTYPE html><html><body>${IKEA_HYDRATED_FRAGMENT}</body></html>`;
+  const dom = loadFabRaw(html, "www.ikea.com");
+  const data = dom.window.extractProductData();
+  assert.ok(
+    data.product_name.includes("SÖDERHAMN") || data.product_name.includes("ソーデルハムン"),
+    `IKEA 商品名が取れていない: ${JSON.stringify(data.product_name)}`
+  );
+  assert.equal(data.site, "ikea.com");
+  assert.ok(data.images.length >= 3, `IKEA 画像 3 枚拾えていない: ${data.images.length}`);
+});
+
+test("FAB(未知ホスト): SITE_CONFIGS に無いホストでは MutationObserver による待機をしない", async () => {
+  const dom = loadFabRaw(NON_PRODUCT_PAGE_HTML, "www.unknown-shop.example");
+  // 既知ホストでないので observer を仕掛けず、即座に cb(false) で終了する想定
+  await new Promise((r) => dom.window.setTimeout(r, 400));
+  assert.equal(dom.window.document.getElementById("ec3d-bridge-fab-root"), null,
+    "未知ホストで FAB が注入された");
+});
+
 // ===== マニフェスト整合性 =====
 
 test("manifest.json の content_scripts に floating_button.js が含まれる", () => {

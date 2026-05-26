@@ -226,6 +226,80 @@ def test_process_url_rejects_invalid_url(client):
     assert r.status_code == 422
 
 
+# ===== IKEA 実 URL 模擬 (SODERHAMN) =====
+# ユーザー報告 (HANDOFF.md) の URL:
+#   https://www.ikea.com/jp/ja/p/soederhamn-compact-3-seat-sofa-viarp-beige-brown-s29419422/
+# サンドボックスから ikea.com 実アクセスは不可なので、IKEA が返す og タグ + img 構造を
+# 模擬した HTML で url_scraper.py が正しく抽出できることを確認する回帰テスト。
+
+
+IKEA_FIXTURE_HTML = """
+<!DOCTYPE html>
+<html lang="ja"><head>
+  <meta property="og:title" content="SÖDERHAMN ソーデルハムン 3人掛けコンパクトソファ, ヴィアルプ ベージュ/ブラウン">
+  <meta property="og:image" content="https://www.ikea.com/jp/ja/images/products/soederhamn-3-seat-sofa__0803527_pe768606_s5.jpg">
+  <meta property="og:url" content="https://www.ikea.com/jp/ja/p/soederhamn-compact-3-seat-sofa-viarp-beige-brown-s29419422/">
+  <title>SÖDERHAMN ソーデルハムン 3人掛けコンパクトソファ - IKEA</title>
+</head><body>
+  <h1 class="pip-header-section__title">
+    <span class="pip-header-section__title__label">SÖDERHAMN ソーデルハムン</span>
+  </h1>
+  <div class="pip-media-grid">
+    <picture><img class="pip-image" src="https://www.ikea.com/jp/ja/images/products/soederhamn-3-seat-sofa__0803528_pe768607_s5.jpg"></picture>
+    <picture><img class="pip-image" src="https://www.ikea.com/jp/ja/images/products/soederhamn-3-seat-sofa__0803529_pe768608_s5.jpg"></picture>
+    <picture><img class="pip-image" src="https://www.ikea.com/jp/ja/images/products/soederhamn-3-seat-sofa__0803530_pe768609_s5.jpg"></picture>
+  </div>
+  <section class="pip-product-dimensions">
+    <p>幅: 198 cm</p><p>奥行き: 99 cm</p><p>高さ: 83 cm</p>
+    <p>合計サイズ: W198×D99×H83 cm</p>
+  </section>
+</body></html>
+"""
+
+IKEA_URL = (
+    "https://www.ikea.com/jp/ja/p/soederhamn-compact-3-seat-sofa-viarp-beige-brown-s29419422/"
+)
+
+
+@respx.mock
+async def test_scrape_ikea_soderhamn_extracts_full_product_data():
+    """IKEA SODERHAMN 商品ページから商品名・画像・寸法 (W198×D99×H83cm) が取れる"""
+    respx.get(IKEA_URL).mock(return_value=httpx.Response(200, text=IKEA_FIXTURE_HTML))
+    data = await scrape_product_url(IKEA_URL)
+
+    assert "SÖDERHAMN" in data["product_name"] or "ソーデルハムン" in data["product_name"]
+    assert data["site"] == "www.ikea.com"
+
+    # og:image が front
+    assert data["images"][0]["type"] == "front"
+    assert "soederhamn" in data["images"][0]["url"].lower()
+    # 追加画像が img タグから拾えている
+    assert len(data["images"]) >= 2
+
+    # 寸法 W198×D99×H83cm が正しく cm 単位で抽出できている
+    assert data["dimensions"]["width_cm"] == 198.0
+    assert data["dimensions"]["depth_cm"] == 99.0
+    assert data["dimensions"]["height_cm"] == 83.0
+
+
+@respx.mock
+async def test_scrape_ikea_url_goes_through_full_pipeline(client, monkeypatch):
+    """IKEA URL を /api/process-url に投げると 202 を返し、パイプラインが正常起動する"""
+    respx.get(IKEA_URL).mock(return_value=httpx.Response(200, text=IKEA_FIXTURE_HTML))
+
+    r = client.post("/api/process-url", json={"url": IKEA_URL})
+    assert r.status_code == 202, r.text
+    body = r.json()
+    assert "job_id" in body
+    assert body["status"] in ("pending", "processing", "queued", "success", "error")
+    # 抽出結果のサマリが応答に含まれる
+    assert "extracted" in body
+    assert (
+        "SÖDERHAMN" in body["extracted"]["product_name"]
+        or "ソーデルハムン" in body["extracted"]["product_name"]
+    )
+
+
 # ===== /ui/ 静的配信 =====
 
 

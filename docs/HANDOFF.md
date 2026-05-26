@@ -1,8 +1,8 @@
 # EC3D-Bridge セッション引き継ぎノート
 
-最終更新: 2026-05-24
+最終更新: 2026-05-26
 ブランチ: `claude/ec3d-bridge-implementation-fv9ap`
-直近コミット: `0bcabc1 v2.5: EC ページに「3D化」フローティングボタンを注入`
+直近: v2.5.1 (IKEA など SPA サイトでの FAB 表示不具合を修正)
 
 ---
 
@@ -25,6 +25,27 @@ v2.5 まで完了済み。動作する状態でブランチに push 済み。
 ---
 
 ## 2. 未対応の最優先タスク
+
+(現在なし — v2.5.1 で IKEA 対応完了)
+
+---
+
+## 2.5. 解決済みの履歴
+
+### ✅ IKEA サイトで FAB がうまく表示されない (v2.5.1, 2026-05-26)
+
+採用した解決策:
+1. `looksLikeProductPage()` を SITE_CONFIGS.images セレクタ駆動に変更
+   → ヘッダーロゴで誤発火しなくなり、SPA hydration 前なら observer 待機に流れる
+2. `waitForProductPage()` で MutationObserver を最大 8 秒、debounce 300ms で再判定
+3. `site_configs.js` IKEA セレクタを実 DOM (`pip-header-section__title__label`,
+   `picture img.pip-image` 等) に追従
+4. `test_floating_button.mjs` に IKEA スケルトン → hydration の回帰テスト 4 件
+5. `test_url_scraper.py` に SODERHAMN URL fixture で `/api/process-url` E2E 検証
+
+---
+
+## 2-(旧). 元の不具合説明 (参考用)
 
 ### 🐛 IKEA サイトで FAB がうまく表示されない
 

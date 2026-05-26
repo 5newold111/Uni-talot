@@ -35,12 +35,75 @@
     });
   }
 
-  // 商品ページっぽいか軽く判定 (h1 と img が複数あれば商品ページとみなす)
-  // 商品検索結果やトップページには出さない
+  // SITE_CONFIGS でこのホストが既知 (8 EC サイトのどれか) かどうか。
+  function knownSiteConfig() {
+    if (typeof getSiteConfig !== "function") return null;
+    try {
+      const { site, config } = getSiteConfig(location.hostname);
+      return site !== "unknown" ? config : null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  // 商品ページっぽいか判定。
+  // - 既知 EC サイト: SITE_CONFIGS.images セレクタ (PDP 専用クラスにチューニング済)
+  //   がマッチすれば商品ページとみなす。これにより:
+  //     * 各サイトの header ロゴ / アイコンには反応しない
+  //     * IKEA など React SPA の hydration 前は images セレクタが空 → 後段の
+  //       MutationObserver で hydration を待ってから注入される
+  // - 未知ホスト: 従来の h1 + img>=3 保守的判定
   function looksLikeProductPage() {
-    const hasH1 = document.querySelectorAll("h1, [class*='item_name'], [class*='product-name'], [data-testid='product-title']").length > 0;
+    const cfg = knownSiteConfig();
+    if (cfg) {
+      try {
+        return document.querySelectorAll(cfg.images).length >= 1;
+      } catch (_) {
+        return false;
+      }
+    }
+    const hasH1 = document.querySelectorAll(
+      "h1, [class*='item_name'], [class*='product-name'], [data-testid='product-title']"
+    ).length > 0;
     const hasManyImages = document.querySelectorAll("img").length >= 3;
     return hasH1 && hasManyImages;
+  }
+
+  // 既知 EC サイトに限り、初期描画でヒットしなければ MutationObserver で
+  // SPA ハイドレーション (React の遅延描画) を最大 maxMs 待つ。
+  // ヒット時 cb(true) / タイムアウト時 cb(false) を呼び observer は解放。
+  function waitForProductPage(maxMs, cb) {
+    if (looksLikeProductPage()) {
+      cb(true);
+      return;
+    }
+    if (!knownSiteConfig()) {
+      cb(false);
+      return;
+    }
+
+    let resolved = false;
+    let timeoutId = null;
+    let debounceId = null;
+
+    const finish = (ok) => {
+      if (resolved) return;
+      resolved = true;
+      if (timeoutId) clearTimeout(timeoutId);
+      if (debounceId) clearTimeout(debounceId);
+      observer.disconnect();
+      cb(ok);
+    };
+
+    const observer = new MutationObserver(() => {
+      if (debounceId) clearTimeout(debounceId);
+      // 連続した DOM ミューテーション (React のバッチ反映) を 300ms デバウンス
+      debounceId = setTimeout(() => {
+        if (looksLikeProductPage()) finish(true);
+      }, 300);
+    });
+    observer.observe(document.documentElement, { childList: true, subtree: true });
+    timeoutId = setTimeout(() => finish(false), maxMs);
   }
 
   function buildButton() {
@@ -222,11 +285,16 @@
 
   // ===== entry =====
   function init() {
-    if (!looksLikeProductPage()) return;
-    shouldRender((render) => {
-      if (!render) return;
-      const refs = buildButton();
-      attachHandlers(refs);
+    waitForProductPage(8000, (isProductPage) => {
+      if (!isProductPage) return;
+      // observer 経由の非同期コールバックなので、ここでも二重注入を再チェック
+      if (document.getElementById(FAB_ID)) return;
+      shouldRender((render) => {
+        if (!render) return;
+        if (document.getElementById(FAB_ID)) return;
+        const refs = buildButton();
+        attachHandlers(refs);
+      });
     });
   }
 
