@@ -32,20 +32,22 @@ def client(monkeypatch):
     return TestClient(main.app)
 
 
-# 公開エンドポイント全リスト (CHANGELOG / README と整合)
+# 公開エンドポイント全リスト (CHANGELOG / README / docs/openapi.json と整合)
 EXPECTED_PATHS = {
     "/health",
     "/health/detail",
     "/api/process",
+    "/api/process-url",
     "/api/status/{job_id}",
     "/api/jobs",
     "/api/jobs/{job_id}/cancel",
+    "/api/jobs/{job_id}/upload-to-homestyler",
     "/api/errors/guidance",
 }
 
 
 def test_all_documented_endpoints_are_registered():
-    """README に書いた 7 エンドポイント全てが FastAPI に登録されている"""
+    """README に書いたエンドポイント全てが FastAPI に登録されている"""
     registered = {r.path for r in main.app.routes if hasattr(r, "path")}
     missing = EXPECTED_PATHS - registered
     assert not missing, f"未登録: {missing}"

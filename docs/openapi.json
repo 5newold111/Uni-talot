@@ -42,6 +42,43 @@
         }
       }
     },
+    "/api/process-url": {
+      "post": {
+        "summary": "Process Url",
+        "description": "サーバー側で URL をフェッチ → 商品情報を抽出 → パイプライン投入。\n\nChrome 拡張機能なしで使えるエントリーポイント (Web UI / curl から呼ぶ用)。\n抽出品質は最小限なので、拡張機能版に比べて寸法や材質情報が不足することがある。\n寸法をクライアント側で知っている場合は dimensions に渡すと上書きされる。",
+        "operationId": "process_url_api_process_url_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProcessUrlRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/jobs/{job_id}/upload-to-homestyler": {
       "post": {
         "summary": "Trigger Homestyler Upload",
@@ -301,6 +338,47 @@
           "url"
         ],
         "title": "ImageRef"
+      },
+      "ProcessUrlRequest": {
+        "properties": {
+          "url": {
+            "type": "string",
+            "maxLength": 2083,
+            "minLength": 1,
+            "format": "uri",
+            "title": "Url"
+          },
+          "dimensions": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "number"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dimensions"
+          },
+          "category": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category"
+          }
+        },
+        "type": "object",
+        "required": [
+          "url"
+        ],
+        "title": "ProcessUrlRequest"
       },
       "ProductData": {
         "properties": {
