@@ -1,5 +1,18 @@
 .coverage
 
+# Runtime artifacts (created by tests / dev server — PII risk, never commit)
+*.db
+logs/
+backend/logs/
+output/
+.pytest_cache/
+__pycache__/
+*.pyc
+
+# Secrets
+.env
+homestyler_storage_state.json
+
 # Claude Code: per-run hook log + machine-local settings
 .claude/hooks/session-start.log
 .claude/settings.local.json
