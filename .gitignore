@@ -1,1 +1,5 @@
 .coverage
+
+# Claude Code: per-run hook log + machine-local settings
+.claude/hooks/session-start.log
+.claude/settings.local.json
