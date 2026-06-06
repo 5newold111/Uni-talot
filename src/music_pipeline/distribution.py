@@ -33,9 +33,9 @@ class DistributionPackager:
             if track.audio_path and Path(track.audio_path).exists():
                 shutil.copy2(track.audio_path, tracks_out / Path(track.audio_path).name)
 
-        # 2) カバーアート
+        # 2) カバーアート（PIL があれば PNG、無ければ SVG）
         cover_path = self.cover.generate(
-            album, release_dir / "cover.svg", artist=self.label.get("artist_name", "AI Sound Lab")
+            album, release_dir, artist=self.label.get("artist_name", "AI Sound Lab")
         )
         album.cover_path = str(cover_path)
 
@@ -50,6 +50,13 @@ class DistributionPackager:
 
     def _write_instructions(self, album: Album, tracks: list[Track], release_dir: Path) -> None:
         artist = self.label.get("artist_name", "AI Sound Lab")
+        cover_name = Path(album.cover_path).name if album.cover_path else "cover.png"
+        cover_is_svg = cover_name.lower().endswith(".svg")
+        cover_step = (
+            f"3. カバーアート（`{cover_name}`）を 3000x3000 の JPG/PNG に変換してアップロード。"
+            if cover_is_svg
+            else f"3. カバーアート（`{cover_name}`, 3000x3000 PNG）をアップロード。"
+        )
         lines = [
             f"# DistroKid アップロード手順 — {album.title}",
             "",
@@ -62,8 +69,12 @@ class DistributionPackager:
             "",
             "1. https://distrokid.com にログイン。",
             "2. **Upload** から新規リリースを作成。",
-            "3. カバーアート（`cover.svg`）を 3000x3000 の JPG/PNG に変換してアップロード。",
-            "   - SVG は本番用に PNG/JPG へ変換してください（例: `rsvg-convert` / オンライン変換）。",
+            cover_step,
+        ]
+        if cover_is_svg:
+            lines.append("   - SVG は本番用に PNG/JPG へ変換してください（例: `rsvg-convert` / オンライン変換）。")
+            lines.append("   - 環境に Pillow を入れると自動で PNG が出力されます（`pip install Pillow`）。")
+        lines += [
             "4. `distrokid_metadata.csv` を参照し、各トラックの情報を入力。",
             "5. `tracks/` 内の音源を順番どおりにアップロード。",
             "6. 配信先（Spotify / Apple Music / YouTube Music 等）を選択して提出。",

@@ -60,7 +60,7 @@ def test_release_packaging(settings: Settings):
     pkg = Path(album.package_dir)
     assert (pkg / "distrokid_metadata.csv").exists()
     assert (pkg / "UPLOAD_INSTRUCTIONS.md").exists()
-    assert (pkg / "cover.svg").exists()
+    assert (pkg / "cover.png").exists() or (pkg / "cover.svg").exists()
     assert (pkg / "tracks").is_dir()
     # 配信後は未配信トラックが無くなる
     assert pipeline.store.unreleased_tracks() == []
