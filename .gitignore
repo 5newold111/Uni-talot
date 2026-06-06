@@ -1,0 +1,20 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+
+# Secrets
+.env
+
+# Generated audio / packages (large binaries are not committed)
+output/tracks/
+output/releases/
+*.mp3
+*.wav
+*.flac
+
+# Keep generated metadata under state/ (committed by the daily workflow)
+!state/.gitkeep

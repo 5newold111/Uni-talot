@@ -1,0 +1,63 @@
+name: Daily Song Generation
+
+# 毎日 1 回 3 曲生成する。cron は UTC。
+# JST 09:00 = UTC 00:00。手動実行も可能。
+on:
+  schedule:
+    - cron: "0 0 * * *"
+  workflow_dispatch:
+    inputs:
+      count:
+        description: "生成する曲数（空なら config の songs_per_day）"
+        required: false
+        default: ""
+
+permissions:
+  contents: write   # state/ のコミットに必要
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Generate songs
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GEMINI_MODEL: ${{ secrets.GEMINI_MODEL }}
+          SUNO_API_KEY: ${{ secrets.SUNO_API_KEY }}
+          SUNO_BASE_URL: ${{ secrets.SUNO_BASE_URL }}
+        run: |
+          if [ -n "${{ github.event.inputs.count }}" ]; then
+            python scripts/run_daily.py --count "${{ github.event.inputs.count }}"
+          else
+            python scripts/run_daily.py
+          fi
+
+      - name: Upload generated audio (artifact)
+        uses: actions/upload-artifact@v4
+        with:
+          name: tracks-${{ github.run_id }}
+          path: output/tracks/
+          if-no-files-found: ignore
+          retention-days: 30
+
+      - name: Commit updated state
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add state/ || true
+          if ! git diff --cached --quiet; then
+            git commit -m "chore: daily generation state update"
+            git push
+          else
+            echo "No state changes to commit."
+          fi

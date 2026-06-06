@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ai-music-pipeline"
+version = "0.1.0"
+description = "Gemini→SUNO→DistroKid のローコスト半自動 楽曲生成・配信パイプライン"
+requires-python = ">=3.9"
+dependencies = [
+  "PyYAML>=6.0",
+  "python-dotenv>=1.0",
+  "requests>=2.31",
+]
+
+[project.optional-dependencies]
+gemini = ["google-generativeai>=0.8"]
+dev = ["pytest>=7.0"]
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
