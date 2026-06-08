@@ -3,6 +3,7 @@ import type {
   AccountType,
   ConsumptionTaxMethod,
   ConsumptionTaxStatus,
+  DepreciationMethod,
   InvoiceStatus,
   PartnerType,
   ShareScope,
@@ -17,6 +18,8 @@ export interface User {
   id: string;
   email: string;
   name: string;
+  /** scrypt によるパスワードハッシュ（"salt:hash" 形式） */
+  passwordHash?: string;
   businessName?: string;
   invoiceNumber?: string;
   taxationType: TaxationType;
@@ -25,6 +28,8 @@ export interface User {
   simplifiedBusinessType?: number | null;
   fiscalYearStartMonth: number;
   taxRounding: TaxRounding;
+  /** 青色申告特別控除額（円） */
+  blueDeduction: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -111,6 +116,39 @@ export interface InvoiceItem {
 
 export interface InvoiceWithItems extends Invoice {
   items: InvoiceItem[];
+}
+
+export interface Attachment {
+  id: string;
+  userId: string;
+  transactionId: string;
+  fileName: string;
+  mimeType: string;
+  /** 小容量画像の data URL（縮小済み）。OCRテキストは ocrText に保持 */
+  dataUrl?: string;
+  ocrText?: string;
+  createdAt: string;
+}
+
+export interface FixedAsset {
+  id: string;
+  userId: string;
+  name: string;
+  /** 取得年月日 (YYYY-MM-DD) */
+  acquisitionDate: string;
+  /** 事業供用開始年月日 */
+  startDate: string;
+  /** 取得価額（円） */
+  acquisitionCost: number;
+  /** 耐用年数（年）。一括償却は3固定、即時償却は不要 */
+  usefulLife: number;
+  method: DepreciationMethod;
+  /** 事業専用割合(%)。家事按分。既定100 */
+  businessRatio: number;
+  /** 対応する資産勘定科目ID（任意） */
+  accountId?: string | null;
+  note?: string;
+  createdAt: string;
 }
 
 export interface ShareLink {

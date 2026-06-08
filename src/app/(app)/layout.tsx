@@ -1,16 +1,22 @@
+import { redirect } from "next/navigation";
 import { Sidebar } from "@/components/Sidebar";
-import { getBackendKind } from "@/lib/repo";
+import { getBackendKind, getCurrentUser } from "@/lib/repo";
+import { getSessionUserId } from "@/lib/session";
+
+export const dynamic = "force-dynamic";
 
 export default async function AppLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const backend = await getBackendKind();
+  if (!getSessionUserId()) redirect("/login");
+
+  const [backend, user] = await Promise.all([getBackendKind(), getCurrentUser()]);
 
   return (
     <div className="flex min-h-screen">
-      <Sidebar />
+      <Sidebar userName={user.businessName || user.name} email={user.email} />
       <div className="flex min-w-0 flex-1 flex-col">
         {backend === "memory" && (
           <div className="bg-amber-50 px-6 py-1.5 text-center text-xs text-amber-800">

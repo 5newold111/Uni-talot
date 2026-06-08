@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { saveSettingsAction } from "@/app/actions";
 import {
+  BLUE_DEDUCTIONS,
   CONSUMPTION_TAX_METHOD,
   CONSUMPTION_TAX_STATUS,
   TAXATION_TYPES,
@@ -27,6 +28,7 @@ export function SettingsForm({ user }: { user: User }) {
     consumptionTaxMethod: user.consumptionTaxMethod as ConsumptionTaxMethod,
     taxRounding: user.taxRounding as TaxRounding,
     fiscalYearStartMonth: user.fiscalYearStartMonth,
+    blueDeduction: user.blueDeduction ?? 650000,
   });
   const [busy, setBusy] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -103,6 +105,18 @@ export function SettingsForm({ user }: { user: User }) {
             <label className="label">消費税の端数処理</label>
             <select className="input" value={f.taxRounding} onChange={(e) => set("taxRounding", e.target.value as TaxRounding)}>
               {Object.entries(TAX_ROUNDING).map(([k, v]) => (
+                <option key={k} value={k}>{v}</option>
+              ))}
+            </select>
+          </div>
+          <div className="sm:col-span-2">
+            <label className="label">青色申告特別控除額</label>
+            <select
+              className="input"
+              value={String(f.blueDeduction)}
+              onChange={(e) => set("blueDeduction", Number(e.target.value))}
+            >
+              {Object.entries(BLUE_DEDUCTIONS).map(([k, v]) => (
                 <option key={k} value={k}>{v}</option>
               ))}
             </select>

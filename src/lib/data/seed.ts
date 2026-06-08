@@ -1,37 +1,24 @@
-// 初期データ投入。標準勘定科目と既定ユーザー、デモ用サンプル取引を作成。
+// 初期データ投入。
+// - seedAccountsForUser: 指定ユーザーに標準勘定科目を投入（登録時にも利用）
+// - seedInitialData: デモユーザー（ログイン可能）＋任意のサンプル取引を作成
 import { DEFAULT_ACCOUNTS } from "../defaultAccounts";
-import type { Account, Partner, Transaction, JournalLine, User } from "../types";
+import { hashPassword } from "../auth";
+import type { Account, JournalLine, Partner, Transaction, User } from "../types";
 import { id } from "./ids";
 import type { Store } from "./store";
 
-export const DEFAULT_USER_ID = "user_default";
+export const DEMO_USER_ID = "user_demo";
+export const DEMO_EMAIL = "demo@example.com";
+export const DEMO_PASSWORD = "demo1234";
 
-export async function seedInitialData(
+/** 指定ユーザーに標準勘定科目を投入し、作成した科目配列を返す。 */
+export async function seedAccountsForUser(
   store: Store,
-  opts: { sample?: boolean } = {},
-): Promise<void> {
-  const now = new Date().toISOString();
-
-  const user: User = {
-    id: DEFAULT_USER_ID,
-    email: "owner@example.com",
-    name: "事業主",
-    businessName: "",
-    invoiceNumber: "",
-    taxationType: "BLUE",
-    consumptionTaxStatus: "EXEMPT",
-    consumptionTaxMethod: "GENERAL",
-    simplifiedBusinessType: null,
-    fiscalYearStartMonth: 1,
-    taxRounding: "FLOOR",
-    createdAt: now,
-    updatedAt: now,
-  };
-  await store.insert("users", user);
-
+  userId: string,
+): Promise<Account[]> {
   const accounts: Account[] = DEFAULT_ACCOUNTS.map((a, i) => ({
     id: id("acc"),
-    userId: DEFAULT_USER_ID,
+    userId,
     code: a.code,
     name: a.name,
     type: a.type,
@@ -41,6 +28,35 @@ export async function seedInitialData(
     isActive: true,
   }));
   await store.insertMany("accounts", accounts);
+  return accounts;
+}
+
+export async function seedInitialData(
+  store: Store,
+  opts: { sample?: boolean } = {},
+): Promise<void> {
+  const now = new Date().toISOString();
+
+  const user: User = {
+    id: DEMO_USER_ID,
+    email: DEMO_EMAIL,
+    name: "デモ事業主",
+    passwordHash: hashPassword(DEMO_PASSWORD),
+    businessName: "サンプル工房",
+    invoiceNumber: "T0000000000000",
+    taxationType: "BLUE",
+    consumptionTaxStatus: "EXEMPT",
+    consumptionTaxMethod: "GENERAL",
+    simplifiedBusinessType: null,
+    fiscalYearStartMonth: 1,
+    taxRounding: "FLOOR",
+    blueDeduction: 650000,
+    createdAt: now,
+    updatedAt: now,
+  };
+  await store.insert("users", user);
+
+  const accounts = await seedAccountsForUser(store, DEMO_USER_ID);
 
   if (!opts.sample) return;
 
@@ -50,7 +66,7 @@ export async function seedInitialData(
   const partners: Partner[] = [
     {
       id: id("ptn"),
-      userId: DEFAULT_USER_ID,
+      userId: DEMO_USER_ID,
       name: "株式会社サンプル商事",
       type: "CUSTOMER",
       invoiceNumber: "T1234567890123",
@@ -58,7 +74,7 @@ export async function seedInitialData(
     },
     {
       id: id("ptn"),
-      userId: DEFAULT_USER_ID,
+      userId: DEMO_USER_ID,
       name: "オフィスサプライ株式会社",
       type: "VENDOR",
       invoiceNumber: "T9876543210987",
@@ -81,7 +97,7 @@ export async function seedInitialData(
     const txId = id("tx");
     txs.push({
       id: txId,
-      userId: DEFAULT_USER_ID,
+      userId: DEMO_USER_ID,
       date,
       description,
       partnerId: partnerId ?? null,
@@ -119,7 +135,6 @@ export async function seedInitialData(
   const ym = (m: number, d: number) =>
     `${year}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
 
-  // 売上（売掛）
   addSimple(
     ym(1, 31), "1月分 業務委託料", "INCOME",
     { account: byCode("111"), amount: 330000, tax: "OUT_OF_SCOPE", rate: 0 },
@@ -132,7 +147,6 @@ export async function seedInitialData(
     { account: byCode("401"), amount: 275000, tax: "TAXABLE_10", rate: 10 },
     partners[0].id,
   );
-  // 経費
   addSimple(
     ym(1, 15), "クラウド利用料", "EXPENSE",
     { account: byCode("515"), amount: 11000, tax: "TAXABLE_10", rate: 10 },

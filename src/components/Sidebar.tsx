@@ -1,18 +1,22 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   BookText,
   Building2,
+  FileSpreadsheet,
   FileText,
+  Landmark,
   LayoutDashboard,
   ListTree,
+  LogOut,
   PieChart,
   Receipt,
   Settings,
   Share2,
 } from "lucide-react";
+import { logoutAction } from "@/app/actions";
 
 const NAV = [
   { href: "/", label: "ダッシュボード", icon: LayoutDashboard },
@@ -20,15 +24,28 @@ const NAV = [
   { href: "/invoices", label: "請求書", icon: FileText },
   { href: "/partners", label: "取引先", icon: Building2 },
   { href: "/accounts", label: "勘定科目", icon: ListTree },
+  { href: "/assets", label: "固定資産・減価償却", icon: Landmark },
   { href: "/reports", label: "レポート", icon: PieChart },
+  { href: "/reports/blue-return", label: "青色申告決算書", icon: FileSpreadsheet },
   { href: "/share", label: "税理士共有", icon: Share2 },
   { href: "/settings", label: "設定", icon: Settings },
 ];
 
-export function Sidebar() {
+export function Sidebar({ userName, email }: { userName: string; email: string }) {
   const pathname = usePathname();
+  const router = useRouter();
   const isActive = (href: string) =>
-    href === "/" ? pathname === "/" : pathname.startsWith(href);
+    href === "/"
+      ? pathname === "/"
+      : href === "/reports"
+        ? pathname === "/reports"
+        : pathname.startsWith(href);
+
+  async function logout() {
+    await logoutAction();
+    router.push("/login");
+    router.refresh();
+  }
 
   return (
     <aside className="flex w-60 shrink-0 flex-col border-r border-slate-200 bg-white">
@@ -41,7 +58,7 @@ export function Sidebar() {
           <div className="text-[11px] text-slate-400">個人事業主の財務管理</div>
         </div>
       </div>
-      <nav className="flex-1 space-y-0.5 px-3">
+      <nav className="flex-1 space-y-0.5 overflow-y-auto px-3">
         {NAV.map(({ href, label, icon: Icon }) => (
           <Link
             key={href}
@@ -57,8 +74,15 @@ export function Sidebar() {
           </Link>
         ))}
       </nav>
-      <div className="px-5 py-4 text-[11px] text-slate-400">
-        青色申告・インボイス対応
+      <div className="border-t border-slate-100 px-4 py-3">
+        <div className="truncate text-sm font-medium text-slate-700">{userName}</div>
+        <div className="truncate text-[11px] text-slate-400">{email}</div>
+        <button
+          onClick={logout}
+          className="mt-2 flex items-center gap-2 text-xs font-medium text-slate-500 hover:text-red-600"
+        >
+          <LogOut size={14} /> ログアウト
+        </button>
       </div>
     </aside>
   );

@@ -92,6 +92,23 @@ export const INVOICE_STATUS = {
 } as const;
 export type InvoiceStatus = keyof typeof INVOICE_STATUS;
 
+/** 減価償却の方法 */
+export const DEPRECIATION_METHODS = {
+  STRAIGHT_LINE: "定額法",
+  LUMP_3YEAR: "一括償却資産（3年均等）",
+  IMMEDIATE: "少額減価償却資産（即時償却）",
+} as const;
+export type DepreciationMethod = keyof typeof DEPRECIATION_METHODS;
+
+/** 青色申告特別控除額の選択肢 */
+export const BLUE_DEDUCTIONS = {
+  "650000": "65万円（複式簿記＋e-Tax/電子帳簿）",
+  "550000": "55万円（複式簿記）",
+  "100000": "10万円（簡易簿記）",
+  "0": "なし（白色等）",
+} as const;
+export type BlueDeductionKey = keyof typeof BLUE_DEDUCTIONS;
+
 /** 共有リンクの範囲 */
 export const SHARE_SCOPES = {
   READONLY: "閲覧のみ",

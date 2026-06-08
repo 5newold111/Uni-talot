@@ -1,10 +1,10 @@
 import { notFound } from "next/navigation";
 import { Receipt } from "lucide-react";
 import {
-  getCurrentUser,
   getShareLinkByToken,
-  listAccounts,
-  listTransactions,
+  getUserById,
+  listAccountsForUser,
+  listTransactionsForUser,
 } from "@/lib/repo";
 import { profitAndLoss, dashboardSummary } from "@/lib/reports";
 import { formatYen, formatDate } from "@/lib/format";
@@ -22,10 +22,11 @@ export default async function SharedViewPage({
 
   const year = link.fiscalYear ?? new Date().getFullYear();
   const [user, accounts, txs] = await Promise.all([
-    getCurrentUser(),
-    listAccounts(),
-    listTransactions({ from: `${year}-01-01`, to: `${year}-12-31` }),
+    getUserById(link.userId),
+    listAccountsForUser(link.userId),
+    listTransactionsForUser(link.userId, { from: `${year}-01-01`, to: `${year}-12-31` }),
   ]);
+  if (!user) notFound();
   const pl = profitAndLoss(accounts, txs);
   const summary = dashboardSummary(accounts, txs);
   const accName = new Map(accounts.map((a) => [a.id, a.name]));

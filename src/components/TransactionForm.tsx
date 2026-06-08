@@ -6,12 +6,13 @@ import { Plus, Trash2 } from "lucide-react";
 import { saveTransactionAction, deleteTransactionAction } from "@/app/actions";
 import {
   TAX_CATEGORIES,
-  TAX_RATE_BY_CATEGORY,
   type TaxCategory,
   type TxKind,
 } from "@/lib/constants";
 import { taxFromGross } from "@/lib/accounting";
 import { formatYen, todayIso } from "@/lib/format";
+import { ReceiptScanner, type ScanResult } from "@/components/ReceiptScanner";
+import type { AttachmentInput } from "@/lib/repo";
 import type { Account, Partner, TransactionWithLines } from "@/lib/types";
 
 interface Props {
@@ -57,6 +58,17 @@ export function TransactionForm({ accounts, partners, initial }: Props) {
   const [description, setDescription] = useState(initial?.description ?? "");
   const [partnerId, setPartnerId] = useState(initial?.partnerId ?? "");
   const [note, setNote] = useState(initial?.note ?? "");
+  const [attachments, setAttachments] = useState<AttachmentInput[]>([]);
+
+  function onScan(r: ScanResult) {
+    if (r.amount != null && r.amount > 0) setAmount(r.amount);
+    if (r.date) setDate(r.date);
+    if (!description.trim()) setDescription(r.fileName.replace(/\.[^.]+$/, ""));
+    setAttachments((prev) => [
+      ...prev,
+      { fileName: r.fileName, mimeType: r.mimeType, dataUrl: r.dataUrl, ocrText: r.ocrText },
+    ]);
+  }
 
   // --- simple mode (2-line) state ---
   const detectSimple = () => {
@@ -171,7 +183,10 @@ export function TransactionForm({ accounts, partners, initial }: Props) {
     const payload = buildPayload();
     if (!payload) return;
     setSaving(true);
-    const res = await saveTransactionAction(payload, initial?.id);
+    const res = await saveTransactionAction(
+      { ...payload, attachments },
+      initial?.id,
+    );
     setSaving(false);
     if (res.ok) router.push("/transactions");
     else setError(res.error);
@@ -234,6 +249,14 @@ export function TransactionForm({ accounts, partners, initial }: Props) {
               value={description}
               onChange={(e) => setDescription(e.target.value)}
             />
+          </div>
+          <div className="sm:col-span-2">
+            <ReceiptScanner onResult={onScan} />
+            {attachments.length > 0 && (
+              <p className="mt-2 text-xs text-emerald-600">
+                領収書 {attachments.length} 件を添付（保存時に登録されます）
+              </p>
+            )}
           </div>
         </div>
       </div>

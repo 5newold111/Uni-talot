@@ -1,12 +1,16 @@
 // ドメイン操作の集約。UI(サーバーアクション/API)はここを経由してデータへアクセスする。
-// 本MVPは単一事業主を想定し、既定ユーザーを対象とする。
-import { DEFAULT_USER_ID } from "./data/seed";
+// マルチユーザー対応: 既定でセッションのログインユーザーにスコープする。
 import { id } from "./data/ids";
 import { getStore } from "./data/store";
+import { seedAccountsForUser } from "./data/seed";
+import { hashPassword } from "./auth";
+import { getSessionUserId } from "./session";
 import { summarizeInvoiceItems, taxFromGross } from "./accounting";
 import { TAX_RATE_BY_CATEGORY, type TaxCategory } from "./constants";
 import type {
   Account,
+  Attachment,
+  FixedAsset,
   Invoice,
   InvoiceItem,
   InvoiceWithItems,
@@ -18,22 +22,11 @@ import type {
   User,
 } from "./types";
 
-// ---------------- User ----------------
-export async function getCurrentUser(): Promise<User> {
-  const store = await getStore();
-  const users = await store.list<User>("users");
-  const u = users.find((x) => x.id === DEFAULT_USER_ID) ?? users[0];
-  if (!u) throw new Error("ユーザーが初期化されていません");
-  return u;
-}
-
-export async function updateUser(patch: Partial<User>): Promise<User> {
-  const store = await getStore();
-  const u = await getCurrentUser();
-  return store.update<User>("users", u.id, {
-    ...patch,
-    updatedAt: new Date().toISOString(),
-  });
+/** ログイン中のユーザーID。未認証なら例外。 */
+function currentUserId(): string {
+  const uid = getSessionUserId();
+  if (!uid) throw new Error("未認証です。ログインしてください。");
+  return uid;
 }
 
 export async function getBackendKind(): Promise<"sheets" | "memory"> {
@@ -41,13 +34,84 @@ export async function getBackendKind(): Promise<"sheets" | "memory"> {
   return store.kind;
 }
 
-// ---------------- Accounts ----------------
-export async function listAccounts(): Promise<Account[]> {
+// ---------------- Auth / User ----------------
+export async function findUserByEmail(email: string): Promise<User | null> {
   const store = await getStore();
-  const accounts = await store.list<Account>("accounts");
-  return accounts
-    .filter((a) => a.userId === DEFAULT_USER_ID)
+  const users = await store.list<User>("users");
+  return users.find((u) => u.email.toLowerCase() === email.toLowerCase()) ?? null;
+}
+
+export async function getUserById(userId: string): Promise<User | null> {
+  const store = await getStore();
+  return (await store.list<User>("users")).find((u) => u.id === userId) ?? null;
+}
+
+/** 新規ユーザー登録＋標準勘定科目の投入。 */
+export async function createUser(input: {
+  email: string;
+  name: string;
+  password: string;
+  businessName?: string;
+}): Promise<User> {
+  const store = await getStore();
+  const existing = await findUserByEmail(input.email);
+  if (existing) throw new Error("このメールアドレスは既に登録されています");
+  const now = new Date().toISOString();
+  const user: User = {
+    id: id("user"),
+    email: input.email,
+    name: input.name,
+    passwordHash: hashPassword(input.password),
+    businessName: input.businessName ?? "",
+    invoiceNumber: "",
+    taxationType: "BLUE",
+    consumptionTaxStatus: "EXEMPT",
+    consumptionTaxMethod: "GENERAL",
+    simplifiedBusinessType: null,
+    fiscalYearStartMonth: 1,
+    taxRounding: "FLOOR",
+    blueDeduction: 650000,
+    createdAt: now,
+    updatedAt: now,
+  };
+  await store.insert("users", user);
+  await seedAccountsForUser(store, user.id);
+  return user;
+}
+
+export async function getCurrentUser(): Promise<User> {
+  const store = await getStore();
+  const uid = currentUserId();
+  const u = (await store.list<User>("users")).find((x) => x.id === uid);
+  if (!u) throw new Error("ユーザーが見つかりません");
+  return u;
+}
+
+export async function updateUser(patch: Partial<User>): Promise<User> {
+  const store = await getStore();
+  const uid = currentUserId();
+  // パスワードハッシュやIDは settings 経由で変更させない
+  const { id: _id, passwordHash: _pw, ...safe } = patch;
+  return store.update<User>("users", uid, {
+    ...safe,
+    updatedAt: new Date().toISOString(),
+  });
+}
+
+// ---------------- Accounts ----------------
+async function accountsForUser(userId: string): Promise<Account[]> {
+  const store = await getStore();
+  return (await store.list<Account>("accounts"))
+    .filter((a) => a.userId === userId)
     .sort((a, b) => a.sortOrder - b.sortOrder || a.code.localeCompare(b.code));
+}
+
+export async function listAccounts(): Promise<Account[]> {
+  return accountsForUser(currentUserId());
+}
+
+export async function listAccountsForUser(userId: string): Promise<Account[]> {
+  return accountsForUser(userId);
 }
 
 export async function createAccount(
@@ -55,10 +119,11 @@ export async function createAccount(
     Partial<Pick<Account, "sortOrder">>,
 ): Promise<Account> {
   const store = await getStore();
-  const existing = await listAccounts();
+  const uid = currentUserId();
+  const existing = await accountsForUser(uid);
   const acc: Account = {
     id: id("acc"),
-    userId: DEFAULT_USER_ID,
+    userId: uid,
     code: input.code,
     name: input.name,
     type: input.type,
@@ -90,9 +155,9 @@ export async function deleteAccount(accountId: string): Promise<void> {
 // ---------------- Partners ----------------
 export async function listPartners(): Promise<Partner[]> {
   const store = await getStore();
-  const partners = await store.list<Partner>("partners");
-  return partners
-    .filter((p) => p.userId === DEFAULT_USER_ID)
+  const uid = currentUserId();
+  return (await store.list<Partner>("partners"))
+    .filter((p) => p.userId === uid)
     .sort((a, b) => a.name.localeCompare(b.name, "ja"));
 }
 
@@ -100,7 +165,7 @@ export async function createPartner(
   input: Omit<Partner, "id" | "userId">,
 ): Promise<Partner> {
   const store = await getStore();
-  const p: Partner = { id: id("ptn"), userId: DEFAULT_USER_ID, ...input };
+  const p: Partner = { id: id("ptn"), userId: currentUserId(), ...input };
   return store.insert("partners", p);
 }
 
@@ -126,7 +191,8 @@ export interface TxFilter {
   accountId?: string;
 }
 
-export async function listTransactions(
+async function txForUser(
+  userId: string,
   filter: TxFilter = {},
 ): Promise<TransactionWithLines[]> {
   const store = await getStore();
@@ -142,7 +208,7 @@ export async function listTransactions(
   }
 
   let result = txs
-    .filter((t) => t.userId === DEFAULT_USER_ID)
+    .filter((t) => t.userId === userId)
     .map((t) => ({ ...t, lines: linesByTx.get(t.id) ?? [] }));
 
   if (filter.from) result = result.filter((t) => t.date >= filter.from!);
@@ -160,12 +226,27 @@ export async function listTransactions(
   );
 }
 
+export async function listTransactions(
+  filter: TxFilter = {},
+): Promise<TransactionWithLines[]> {
+  return txForUser(currentUserId(), filter);
+}
+
+export async function listTransactionsForUser(
+  userId: string,
+  filter: TxFilter = {},
+): Promise<TransactionWithLines[]> {
+  return txForUser(userId, filter);
+}
+
 export async function getTransaction(
   txId: string,
 ): Promise<TransactionWithLines | null> {
   const store = await getStore();
-  const txs = await store.list<Transaction>("transactions");
-  const tx = txs.find((t) => t.id === txId);
+  const uid = currentUserId();
+  const tx = (await store.list<Transaction>("transactions")).find(
+    (t) => t.id === txId && t.userId === uid,
+  );
   if (!tx) return null;
   const lines = (await store.list<JournalLine>("journalLines")).filter(
     (l) => l.transactionId === txId,
@@ -181,6 +262,13 @@ export interface LineInput {
   description?: string;
 }
 
+export interface AttachmentInput {
+  fileName: string;
+  mimeType: string;
+  dataUrl?: string;
+  ocrText?: string;
+}
+
 export interface TransactionInput {
   date: string;
   description: string;
@@ -188,6 +276,7 @@ export interface TransactionInput {
   kind: Transaction["kind"];
   note?: string;
   lines: LineInput[];
+  attachments?: AttachmentInput[];
 }
 
 function buildLines(txId: string, inputs: LineInput[]): JournalLine[] {
@@ -207,26 +296,53 @@ function buildLines(txId: string, inputs: LineInput[]): JournalLine[] {
   });
 }
 
-async function nextSlipNumber(store: Awaited<ReturnType<typeof getStore>>): Promise<number> {
-  const txs = await store.list<Transaction>("transactions");
+async function nextSlipNumber(
+  store: Awaited<ReturnType<typeof getStore>>,
+  userId: string,
+): Promise<number> {
+  const txs = (await store.list<Transaction>("transactions")).filter(
+    (t) => t.userId === userId,
+  );
   const max = txs.reduce((m, t) => Math.max(m, t.slipNumber ?? 0), 0);
   return max + 1;
+}
+
+async function saveAttachments(
+  store: Awaited<ReturnType<typeof getStore>>,
+  userId: string,
+  txId: string,
+  attachments: AttachmentInput[] | undefined,
+) {
+  if (!attachments || attachments.length === 0) return;
+  const now = new Date().toISOString();
+  const rows: Attachment[] = attachments.map((a) => ({
+    id: id("att"),
+    userId,
+    transactionId: txId,
+    fileName: a.fileName,
+    mimeType: a.mimeType,
+    dataUrl: a.dataUrl ?? "",
+    ocrText: a.ocrText ?? "",
+    createdAt: now,
+  }));
+  await store.insertMany("attachments", rows);
 }
 
 export async function createTransaction(
   input: TransactionInput,
 ): Promise<TransactionWithLines> {
   const store = await getStore();
+  const uid = currentUserId();
   const now = new Date().toISOString();
   const txId = id("tx");
   const tx: Transaction = {
     id: txId,
-    userId: DEFAULT_USER_ID,
+    userId: uid,
     date: input.date,
     description: input.description,
     partnerId: input.partnerId ?? null,
     kind: input.kind,
-    slipNumber: await nextSlipNumber(store),
+    slipNumber: await nextSlipNumber(store, uid),
     note: input.note ?? "",
     createdAt: now,
     updatedAt: now,
@@ -234,6 +350,7 @@ export async function createTransaction(
   const lines = buildLines(txId, input.lines);
   await store.insert("transactions", tx);
   await store.insertMany("journalLines", lines);
+  await saveAttachments(store, uid, txId, input.attachments);
   return { ...tx, lines };
 }
 
@@ -242,7 +359,7 @@ export async function updateTransaction(
   input: TransactionInput,
 ): Promise<TransactionWithLines> {
   const store = await getStore();
-  // 明細を入れ替え（既存削除→再作成）
+  const uid = currentUserId();
   const existing = (await store.list<JournalLine>("journalLines")).filter(
     (l) => l.transactionId === txId,
   );
@@ -258,6 +375,7 @@ export async function updateTransaction(
   });
   const lines = buildLines(txId, input.lines);
   await store.insertMany("journalLines", lines);
+  await saveAttachments(store, uid, txId, input.attachments);
   return { ...updated, lines };
 }
 
@@ -267,15 +385,26 @@ export async function deleteTransaction(txId: string): Promise<void> {
     (l) => l.transactionId === txId,
   );
   for (const l of lines) await store.remove("journalLines", l.id);
+  const atts = (await store.list<Attachment>("attachments")).filter(
+    (a) => a.transactionId === txId,
+  );
+  for (const a of atts) await store.remove("attachments", a.id);
   await store.remove("transactions", txId);
+}
+
+export async function listAttachments(txId: string): Promise<Attachment[]> {
+  const store = await getStore();
+  return (await store.list<Attachment>("attachments")).filter(
+    (a) => a.transactionId === txId,
+  );
 }
 
 // ---------------- Invoices ----------------
 export async function listInvoices(): Promise<Invoice[]> {
   const store = await getStore();
-  const invoices = await store.list<Invoice>("invoices");
-  return invoices
-    .filter((i) => i.userId === DEFAULT_USER_ID)
+  const uid = currentUserId();
+  return (await store.list<Invoice>("invoices"))
+    .filter((i) => i.userId === uid)
     .sort((a, b) => b.issueDate.localeCompare(a.issueDate));
 }
 
@@ -283,8 +412,9 @@ export async function getInvoice(
   invoiceId: string,
 ): Promise<InvoiceWithItems | null> {
   const store = await getStore();
+  const uid = currentUserId();
   const inv = (await store.list<Invoice>("invoices")).find(
-    (i) => i.id === invoiceId,
+    (i) => i.id === invoiceId && i.userId === uid,
   );
   if (!inv) return null;
   const items = (await store.list<InvoiceItem>("invoiceItems"))
@@ -327,7 +457,7 @@ export async function createInvoice(
   const summary = summarizeInvoiceItems(input.items, user.taxRounding);
   const inv: Invoice = {
     id: invId,
-    userId: DEFAULT_USER_ID,
+    userId: user.id,
     partnerId: input.partnerId ?? null,
     number: input.number,
     issueDate: input.issueDate,
@@ -402,11 +532,47 @@ export async function deleteInvoice(invoiceId: string): Promise<void> {
   await store.remove("invoices", invoiceId);
 }
 
+// ---------------- Fixed assets ----------------
+export async function listFixedAssets(): Promise<FixedAsset[]> {
+  const store = await getStore();
+  const uid = currentUserId();
+  return (await store.list<FixedAsset>("fixedAssets"))
+    .filter((a) => a.userId === uid)
+    .sort((a, b) => a.acquisitionDate.localeCompare(b.acquisitionDate));
+}
+
+export async function createFixedAsset(
+  input: Omit<FixedAsset, "id" | "userId" | "createdAt">,
+): Promise<FixedAsset> {
+  const store = await getStore();
+  const asset: FixedAsset = {
+    id: id("fa"),
+    userId: currentUserId(),
+    createdAt: new Date().toISOString(),
+    ...input,
+  };
+  return store.insert("fixedAssets", asset);
+}
+
+export async function updateFixedAsset(
+  assetId: string,
+  patch: Partial<FixedAsset>,
+): Promise<FixedAsset> {
+  const store = await getStore();
+  return store.update<FixedAsset>("fixedAssets", assetId, patch);
+}
+
+export async function deleteFixedAsset(assetId: string): Promise<void> {
+  const store = await getStore();
+  await store.remove("fixedAssets", assetId);
+}
+
 // ---------------- Share links ----------------
 export async function listShareLinks(): Promise<ShareLink[]> {
   const store = await getStore();
+  const uid = currentUserId();
   return (await store.list<ShareLink>("shareLinks"))
-    .filter((s) => s.userId === DEFAULT_USER_ID)
+    .filter((s) => s.userId === uid)
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 }
 
@@ -417,7 +583,7 @@ export async function createShareLink(
   const { token } = await import("./data/ids");
   const link: ShareLink = {
     id: id("shr"),
-    userId: DEFAULT_USER_ID,
+    userId: currentUserId(),
     token: token(),
     label: input.label ?? "",
     scope: input.scope,
