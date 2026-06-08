@@ -1,0 +1,11 @@
+# Core (always needed)
+PyYAML>=6.0
+python-dotenv>=1.0
+requests>=2.31
+
+# Cover art: PNG 3000x3000 generation (DistroKid requirement).
+# Optional — falls back to SVG if absent.
+Pillow>=10.0
+
+# Real mode only (Gemini). Safe to omit when running in mock mode.
+google-generativeai>=0.8 ; python_version >= "3.9"

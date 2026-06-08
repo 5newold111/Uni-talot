@@ -1,0 +1,71 @@
+# ── レーベル / アーティスト情報（配信メタデータに使用）──
+label:
+  artist_name: "AI Sound Lab"
+  label_name: "AI Sound Lab"
+  primary_genre: "Electronic"
+  language: "English"        # 歌あり曲の歌詞言語。"Japanese" / "English" など
+                             # （全曲インストにしたい場合は generation.instrumental_ratio を 1.0 に）
+  explicit: false
+
+# ── スケジュール ──
+schedule:
+  songs_per_day: 3
+  release_days: [1, 15]      # 毎月この日にアルバムをリリース
+
+# ── トレンド分析の範囲（著作権セーフ：抽象的な傾向のみ）──
+# 既存曲そのものではなく、ジャンル/テンポ/ムードの「傾向」を扱う。
+trend:
+  target_genres:
+    - "Lo-Fi Hip Hop"
+    - "Synthwave"
+    - "Ambient Pop"
+    - "Future Bass"
+    - "City Pop (modern)"
+  bpm_range: [70, 140]
+  moods:
+    - "uplifting"
+    - "chill"
+    - "nostalgic"
+    - "dreamy"
+    - "energetic"
+
+# ── 生成（SUNO）──
+generation:
+  instrumental_ratio: 0.5    # 0.0=全曲歌あり, 1.0=全曲インスト
+  duration_seconds: 120
+  model_hint: "v4"           # SUNO ラッパーに渡すヒント（任意）
+  # 非公式ラッパーのエンドポイントを上書きしたい場合のみ指定（既定は gcui-art/suno-api 互換）
+  # endpoints:
+  #   custom_generate: "/api/custom_generate"
+  #   generate: "/api/generate"
+  #   get: "/api/get"
+
+# ── カバーアート ──
+cover:
+  backend: "auto"            # auto | gemini | local
+  # gemini バックエンドで使う画像生成モデル（実環境で要確認）
+  model: "gemini-2.0-flash-preview-image-generation"
+
+# ── 配信 ──
+distribution:
+  # 既定は半自動（パッケージのみ生成）。ブラウザ自動操作は opt-in。
+  playwright:
+    base_url: "https://distrokid.com"
+    headless: true
+    auto_submit: false       # true で最終送信まで自動（自己責任・要規約順守）
+    timeout_ms: 30000
+    # 画面変更に追従するためのセレクタ上書き（必要時のみ）
+    # selectors:
+    #   login_email: "input[type=email]"
+    #   album_title: "#album_title"
+
+# ── 出力先 ──
+output:
+  base_dir: "output"
+  tracks_dir: "output/tracks"
+  releases_dir: "output/releases"
+
+# ── 状態保存 ──
+state:
+  dir: "state"
+  file: "state/state.json"
