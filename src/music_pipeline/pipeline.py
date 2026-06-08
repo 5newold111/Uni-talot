@@ -48,7 +48,8 @@ class Pipeline:
         return generated_ids
 
     # ── リリース：アルバム化して配信パッケージを作る ──
-    def run_release(self, release_date: date | None = None, force: bool = False) -> Album | None:
+    def run_release(self, release_date: date | None = None, force: bool = False,
+                    upload: str = "none") -> Album | None:
         today = release_date or date.today()
         if not force and today.day not in self.settings.release_days:
             logger.info("Today (%s) is not a release day %s; skipping.",
@@ -70,18 +71,43 @@ class Pipeline:
         self.store.set_last_release_date(today)
         self.store.save()
 
+        # 配信（既定は半自動：パッケージ生成のみ。playwright 指定でブラウザ自動操作）
+        upload_note = self._maybe_upload(upload, album, tracks, release_dir)
+
         Notifier(self.settings).send(
             subject=f"[AI Music] アルバム '{album.title}' を配信パッケージ化しました",
             body=(
                 f"アルバム: {album.title}\n"
                 f"トラック数: {len(tracks)}\n"
                 f"パッケージ: {release_dir}\n\n"
-                f"DistroKid にログインし、{release_dir}/UPLOAD_INSTRUCTIONS.md に従って\n"
-                f"最終アップロードを行ってください（半自動配信の最終ステップ）。\n"
+                f"{upload_note}\n"
             ),
         )
         logger.info("=== Release done: %s -> %s ===", album.title, release_dir)
         return album
+
+    def _maybe_upload(self, upload: str, album: Album, tracks: list, release_dir) -> str:
+        if upload != "playwright":
+            return (
+                f"DistroKid にログインし、{release_dir}/UPLOAD_INSTRUCTIONS.md に従って\n"
+                f"最終アップロードを行ってください（半自動配信の最終ステップ）。"
+            )
+        from .distrokid_playwright import DistroKidPlaywrightUploader
+
+        try:
+            submitted = DistroKidPlaywrightUploader(self.settings).upload(album, tracks, release_dir)
+            if submitted:
+                return "DistroKid へ自動送信しました（auto_submit=true）。"
+            return (
+                "DistroKid 画面に全項目を入力しました。auto_submit=false のため未送信です。\n"
+                f"{release_dir}/playwright/before_submit.png を確認し、手動で送信してください。"
+            )
+        except Exception as exc:
+            logger.warning("自動アップロード失敗: %s", exc)
+            return (
+                f"自動アップロードに失敗しました（{exc}）。\n"
+                f"{release_dir}/UPLOAD_INSTRUCTIONS.md に従って手動でアップロードしてください。"
+            )
 
 
 def configure_logging() -> None:

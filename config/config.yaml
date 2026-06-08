@@ -40,6 +40,25 @@ generation:
   #   generate: "/api/generate"
   #   get: "/api/get"
 
+# ── カバーアート ──
+cover:
+  backend: "auto"            # auto | gemini | local
+  # gemini バックエンドで使う画像生成モデル（実環境で要確認）
+  model: "gemini-2.0-flash-preview-image-generation"
+
+# ── 配信 ──
+distribution:
+  # 既定は半自動（パッケージのみ生成）。ブラウザ自動操作は opt-in。
+  playwright:
+    base_url: "https://distrokid.com"
+    headless: true
+    auto_submit: false       # true で最終送信まで自動（自己責任・要規約順守）
+    timeout_ms: 30000
+    # 画面変更に追従するためのセレクタ上書き（必要時のみ）
+    # selectors:
+    #   login_email: "input[type=email]"
+    #   album_title: "#album_title"
+
 # ── 出力先 ──
 output:
   base_dir: "output"

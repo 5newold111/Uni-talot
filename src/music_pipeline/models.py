@@ -3,13 +3,19 @@
 from __future__ import annotations
 
 import uuid
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass, field, fields
 from datetime import date, datetime
 from typing import Any
 
 
 def _new_id(prefix: str) -> str:
     return f"{prefix}_{uuid.uuid4().hex[:10]}"
+
+
+def _filter_known(cls, d: dict[str, Any]) -> dict[str, Any]:
+    """dataclass に存在するフィールドだけを残す（前方/後方互換のため）。"""
+    known = {f.name for f in fields(cls)}
+    return {k: v for k, v in d.items() if k in known}
 
 
 @dataclass
@@ -49,6 +55,12 @@ class CreativeBrief:
     theme: str = ""
     is_instrumental: bool = False
     language: str = "Instrumental"
+    # --- 品質チューニング用の追加属性（任意）---
+    sub_genre: str = ""
+    vocal_type: str = ""
+    production_notes: str = ""
+    energy_arc: str = ""
+    hook: str = ""
     suno_style_prompt: str = ""   # SUNO の style/description 欄へ
     suno_lyrics_prompt: str = ""  # SUNO の lyrics 欄へ（インストなら空）
     created_at: str = field(default_factory=lambda: datetime.utcnow().isoformat())
@@ -63,7 +75,7 @@ class CreativeBrief:
 
     @classmethod
     def from_dict(cls, d: dict[str, Any]) -> "CreativeBrief":
-        return cls(**d)
+        return cls(**_filter_known(cls, d))
 
 
 @dataclass
@@ -91,7 +103,7 @@ class Track:
 
     @classmethod
     def from_dict(cls, d: dict[str, Any]) -> "Track":
-        d = dict(d)
+        d = _filter_known(cls, dict(d))
         d["brief"] = CreativeBrief.from_dict(d["brief"])
         return cls(**d)
 
@@ -122,4 +134,4 @@ class Album:
 
     @classmethod
     def from_dict(cls, d: dict[str, Any]) -> "Album":
-        return cls(**d)
+        return cls(**_filter_known(cls, d))

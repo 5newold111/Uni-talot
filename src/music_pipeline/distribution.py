@@ -10,8 +10,10 @@ from __future__ import annotations
 import shutil
 from pathlib import Path
 
+from collections import Counter
+
 from .config import Settings
-from .cover_art import CoverArtGenerator
+from .cover_art import create_cover_generator
 from .metadata import MetadataBuilder
 from .models import Album, Track
 
@@ -21,7 +23,16 @@ class DistributionPackager:
         self.settings = settings
         self.label = settings.section("label")
         self.metadata = MetadataBuilder(settings)
-        self.cover = CoverArtGenerator()
+        self.cover = create_cover_generator(settings)
+
+    @staticmethod
+    def _style_hint(tracks: list[Track]) -> str:
+        """トラック群から代表的なジャンル/ムードを抽出してカバー用ヒントにする。"""
+        genres = Counter(t.brief.genre for t in tracks if t.brief.genre)
+        moods = Counter(t.brief.mood for t in tracks if t.brief.mood)
+        g = genres.most_common(1)[0][0] if genres else "electronic"
+        m = moods.most_common(1)[0][0] if moods else "atmospheric"
+        return f"{m} {g}"
 
     def package(self, album: Album, tracks: list[Track]) -> Path:
         release_dir = self.settings.releases_dir / album.id
@@ -33,9 +44,12 @@ class DistributionPackager:
             if track.audio_path and Path(track.audio_path).exists():
                 shutil.copy2(track.audio_path, tracks_out / Path(track.audio_path).name)
 
-        # 2) カバーアート（PIL があれば PNG、無ければ SVG）
+        # 2) カバーアート（Gemini 画像 → ローカル PNG → SVG の順でフォールバック）
         cover_path = self.cover.generate(
-            album, release_dir, artist=self.label.get("artist_name", "AI Sound Lab")
+            album,
+            release_dir,
+            artist=self.label.get("artist_name", "AI Sound Lab"),
+            style_hint=self._style_hint(tracks),
         )
         album.cover_path = str(cover_path)
 

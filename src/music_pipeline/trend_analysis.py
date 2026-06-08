@@ -15,6 +15,7 @@ import logging
 import random
 from datetime import datetime
 
+from . import prompting
 from .config import Settings
 from .models import CreativeBrief, TrendProfile
 
@@ -29,6 +30,23 @@ _COPYRIGHT_GUARDRAIL = (
     "mood, and instrumentation conventions (which are facts/ideas, not protected "
     "expression). Do not produce anything that could be a derivative of a "
     "specific copyrighted work."
+)
+
+# ブリーフ生成のシステムプロンプト（品質チューニング）
+_BRIEF_SYSTEM_PROMPT = (
+    "You are a professional songwriter and music producer creating briefs for an "
+    "AI music generator (SUNO).\n"
+    f"{_COPYRIGHT_GUARDRAIL}\n\n"
+    "Quality rules:\n"
+    "- Craft a memorable, singable hook and a clear emotional arc.\n"
+    "- Use concrete, sensory, original imagery in lyrics; avoid clichés and filler.\n"
+    "- Keep verses and choruses with consistent meter and natural rhyme.\n"
+    "- Structure lyrics with SUNO section tags: [Intro], [Verse], [Pre-Chorus], "
+    "[Chorus], [Bridge], [Outro].\n"
+    "- The style description should name genre, sub-genre, tempo, key, instrumentation, "
+    "vocal character, production texture, and energy arc.\n"
+    "- Everything must be 100% original. Never reproduce real lyrics/titles/artists.\n"
+    "- Output STRICT JSON only, no prose, no code fences."
 )
 
 
@@ -121,6 +139,70 @@ class BriefGenerator:
         # 設定が "Instrumental" のまま歌あり曲になった場合の保険
         return "English" if lang.lower() == "instrumental" else lang
 
+    # --- スタイル/歌詞の組み立てを一元化（モック/Gemini 共通で品質を担保）---
+    def _assemble_brief(
+        self,
+        *,
+        rng: random.Random,
+        title: str,
+        genre: str,
+        mood: str,
+        bpm: int,
+        key: str,
+        instruments: list[str],
+        structure: list[str],
+        theme: str,
+        instrumental: bool,
+        sub_genre: str = "",
+        vocal_type: str = "",
+        production_notes: str = "",
+        energy_arc: str = "",
+        hook: str = "",
+        lyrics_body: str | None = None,
+    ) -> CreativeBrief:
+        language = self._lyric_language(instrumental)
+        style = prompting.build_style_prompt(
+            genre=genre,
+            mood=mood,
+            bpm=bpm,
+            musical_key=key,
+            instruments=instruments,
+            is_instrumental=instrumental,
+            sub_genre=sub_genre,
+            vocal_type=vocal_type,
+            production_notes=production_notes,
+            energy_arc=energy_arc,
+            rng=rng,
+        )
+        if instrumental:
+            lyrics = ""
+        elif lyrics_body and lyrics_body.strip():
+            lyrics = lyrics_body.strip() + "\n"
+        else:
+            lyrics = prompting.build_lyrics_scaffold(
+                structure=structure, mood=mood, theme=theme, hook=hook,
+                language=language, rng=rng,
+            )
+        return CreativeBrief.new(
+            title=title,
+            genre=genre,
+            mood=mood,
+            bpm=bpm,
+            musical_key=key,
+            instruments=instruments,
+            structure=structure,
+            theme=theme,
+            is_instrumental=instrumental,
+            language=language,
+            sub_genre=sub_genre,
+            vocal_type="" if instrumental else (vocal_type or ""),
+            production_notes=production_notes,
+            energy_arc=energy_arc,
+            hook="" if instrumental else hook,
+            suno_style_prompt=style,
+            suno_lyrics_prompt=lyrics,
+        )
+
     # --- mock ---
     def _mock_brief(self, profile: TrendProfile, index: int, n: int) -> CreativeBrief:
         rng = random.Random(f"{profile.captured_at}:{index}")
@@ -132,20 +214,21 @@ class BriefGenerator:
         instrumental = self._is_instrumental(index, n)
         title = self._mock_title(rng, mood, genre)
         instruments = (profile.instrumentation_trends or ["synth pad", "piano", "drums"])[:4]
-        style = f"{mood} {genre}, {bpm} BPM, {key}, " + ", ".join(instruments)
-        return CreativeBrief.new(
+        return self._assemble_brief(
+            rng=rng,
             title=title,
             genre=genre,
             mood=mood,
             bpm=bpm,
-            musical_key=key,
+            key=key,
             instruments=instruments,
-            structure=["intro", "verse", "chorus", "verse", "chorus", "outro"],
-            theme=f"an original {mood} mood piece",
-            is_instrumental=instrumental,
-            language=self._lyric_language(instrumental),
-            suno_style_prompt=style + " — original, no references to existing works",
-            suno_lyrics_prompt="" if instrumental else self._mock_lyrics(mood),
+            structure=["intro", "verse", "pre-chorus", "chorus", "verse", "chorus", "bridge", "chorus", "outro"],
+            theme=f"an original {mood} reflection",
+            instrumental=instrumental,
+            sub_genre=rng.choice(["downtempo", "dream pop", "future garage", "chillwave", ""]),
+            vocal_type=rng.choice(prompting.VOCAL_TYPES),
+            production_notes=rng.choice(prompting.PRODUCTION_DESCRIPTORS),
+            energy_arc=rng.choice(prompting.ENERGY_ARCS),
         )
 
     @staticmethod
@@ -154,30 +237,26 @@ class BriefGenerator:
         words_b = ["Tides", "Echoes", "Skyline", "Garden", "Signal", "Mirage", "Drift"]
         return f"{rng.choice(words_a)} {rng.choice(words_b)}"
 
-    @staticmethod
-    def _mock_lyrics(mood: str) -> str:
-        return (
-            "[Verse]\nOriginal placeholder lyric line one\nOriginal placeholder lyric line two\n"
-            "[Chorus]\nAn original hook for a "
-            f"{mood} song\n"
-        )
-
     # --- gemini ---
     def _gemini_briefs(self, profile: TrendProfile, n: int) -> list[CreativeBrief]:
         import google.generativeai as genai
 
         genai.configure(api_key=self.settings.gemini_api_key)
-        model = genai.GenerativeModel(self.settings.gemini_model)
+        model = genai.GenerativeModel(
+            self.settings.gemini_model, system_instruction=_BRIEF_SYSTEM_PROMPT
+        )
 
         prompt = (
-            f"{_COPYRIGHT_GUARDRAIL}\n\n"
             f"Using ONLY this abstract trend profile:\n{json.dumps(profile.to_dict())}\n\n"
-            f"Invent {n} ORIGINAL song concepts. Each must be wholly original and must "
-            "NOT resemble or reference any specific existing song/artist. "
-            "Return strict JSON: a list of objects with keys: title, genre, mood, "
-            "bpm (int), musical_key, instruments (list[str]), structure (list[str]), "
-            "theme, is_instrumental (bool), suno_style_prompt, suno_lyrics_prompt "
-            "(empty if instrumental)."
+            f"Invent {n} wholly ORIGINAL song concepts. "
+            "Return STRICT JSON: a list of objects with keys: "
+            "title, genre, sub_genre, mood, bpm (int), musical_key, "
+            "instruments (list[str]), structure (list[str] using section names like "
+            "intro/verse/pre-chorus/chorus/bridge/outro), theme, is_instrumental (bool), "
+            "vocal_type, production_notes, energy_arc, hook, "
+            "lyrics (full original lyrics WITH SUNO section tags like [Verse]/[Chorus]; "
+            "empty string if instrumental). "
+            "Lyrics must be original and must not quote or paraphrase any real song."
         )
         resp = model.generate_content(prompt)
         items = _extract_json(resp.text)
@@ -186,21 +265,26 @@ class BriefGenerator:
 
         briefs: list[CreativeBrief] = []
         for i, item in enumerate(items[:n]):
+            rng = random.Random(f"{profile.captured_at}:gemini:{i}")
             instrumental = bool(item.get("is_instrumental", self._is_instrumental(i, n)))
             briefs.append(
-                CreativeBrief.new(
+                self._assemble_brief(
+                    rng=rng,
                     title=item.get("title", f"Untitled {i + 1}"),
                     genre=item.get("genre", "Electronic"),
                     mood=item.get("mood", "chill"),
                     bpm=int(item.get("bpm", 100)),
-                    musical_key=item.get("musical_key", "C major"),
+                    key=item.get("musical_key", "C major"),
                     instruments=item.get("instruments", []),
-                    structure=item.get("structure", ["intro", "verse", "chorus"]),
+                    structure=item.get("structure", ["intro", "verse", "chorus", "verse", "chorus", "outro"]),
                     theme=item.get("theme", ""),
-                    is_instrumental=instrumental,
-                    language=self._lyric_language(instrumental),
-                    suno_style_prompt=item.get("suno_style_prompt", ""),
-                    suno_lyrics_prompt="" if instrumental else item.get("suno_lyrics_prompt", ""),
+                    instrumental=instrumental,
+                    sub_genre=item.get("sub_genre", ""),
+                    vocal_type=item.get("vocal_type", ""),
+                    production_notes=item.get("production_notes", ""),
+                    energy_arc=item.get("energy_arc", ""),
+                    hook=item.get("hook", ""),
+                    lyrics_body=item.get("lyrics") or item.get("suno_lyrics_prompt"),
                 )
             )
         # 万一足りなければモックで補完

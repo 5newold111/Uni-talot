@@ -90,10 +90,36 @@
 | DistroKid | 約 $1.7（$19.99/年 ÷ 12） |
 | **合計** | **約 $10〜12 / 月** |
 
+## カバーアートのバックエンド
+
+`cover_art.create_cover_generator(settings)` が `config.yaml の cover.backend` に応じて
+バックエンドを選択する。
+
+- `gemini`: Gemini 画像生成で**抽象アートワーク**を作り、PIL で 3000×3000 に整形して
+  タイトル/アーティストを重ねる。失敗時は自動でローカルへフォールバック。
+- `local`: Pillow で 3000×3000 PNG（無ければ SVG）。
+- `auto`（既定）: Gemini が使えれば gemini、なければ local。
+
+画像プロンプトは抽象アートに限定し、実在の人物・ロゴ・既存作品を参照しない（著作権セーフ）。
+
+## 配信モード
+
+- **半自動（既定）**: 配信パッケージのみ生成し、最後の DistroKid アップロードは人手。
+- **ブラウザ自動操作（opt-in）**: `--upload playwright`。`distrokid_playwright.py` が
+  Playwright で自分の DistroKid アカウントを操作。既定は `auto_submit: false`（送信せず
+  レビュー用スクショを残す）。利用規約順守・自己責任。画面変更に弱いためセレクタは
+  `config.yaml の distribution.playwright.selectors` で上書き可能。
+
+## プロンプト品質
+
+`prompting.py` が SUNO 向けのスタイル文字列と歌詞スキャフォールド（[Verse]/[Chorus]
+等のセクションタグ付き）を組み立てる。モック・Gemini 双方が同じビルダーを共有し、
+ジャンル/サブジャンル/テンポ/キー/楽器/ボーカル質感/プロダクション/エネルギー展開を
+含む構造化プロンプトを出力する。
+
 ## 拡張ポイント
 
-- **カバーアート**: `cover_art.CoverArtGenerator` を画像生成 API（Gemini 画像 /
-  Stable Diffusion 等）実装に差し替え可能。
 - **配信**: 将来 API 対応ディストリビューター（Revelator / SonoSuite 等）へ移行する
   場合は `distribution.py` にアダプタを追加。
 - **生成エンジン**: `generation.py` のインターフェースを実装すれば Udio 等へ差し替え可能。
+- **カバー**: `cover_art.py` に別の画像生成バックエンドを追加可能。

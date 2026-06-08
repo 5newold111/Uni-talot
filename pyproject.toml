@@ -15,6 +15,9 @@ dependencies = [
 
 [project.optional-dependencies]
 gemini = ["google-generativeai>=0.8"]
+cover = ["Pillow>=10.0"]
+# DistroKid ブラウザ自動操作（opt-in）。導入後に `playwright install chromium` が必要。
+distrokid = ["playwright>=1.40"]
 dev = ["pytest>=7.0"]
 
 [tool.setuptools]
