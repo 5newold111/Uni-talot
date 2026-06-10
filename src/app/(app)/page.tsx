@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Plus } from "lucide-react";
+import { Plus, Zap } from "lucide-react";
 import { PageHeader, StatCard } from "@/components/ui";
 import { MonthlyChart, CategoryBars } from "@/components/MonthlyChart";
 import { listAccounts, listTransactions, getCurrentUser } from "@/lib/repo";
@@ -38,9 +38,14 @@ export default async function DashboardPage() {
         title={`ダッシュボード`}
         description={`${user.businessName || user.name} ・ ${year}年`}
         action={
-          <Link href="/transactions/new" className="btn-primary">
-            <Plus size={16} /> 取引を入力
-          </Link>
+          <div className="flex gap-2">
+            <Link href="/quick" className="btn-secondary">
+              <Zap size={16} /> かんたん入力
+            </Link>
+            <Link href="/transactions/new" className="btn-primary">
+              <Plus size={16} /> 取引を入力
+            </Link>
+          </div>
         }
       />
 

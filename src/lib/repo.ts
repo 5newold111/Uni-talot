@@ -399,6 +399,18 @@ export async function listAttachments(txId: string): Promise<Attachment[]> {
   );
 }
 
+/** 複数取引をまとめて作成（かんたん連続入力）。作成件数を返す。 */
+export async function createTransactionsBatch(
+  inputs: TransactionInput[],
+): Promise<number> {
+  let count = 0;
+  for (const input of inputs) {
+    await createTransaction(input);
+    count++;
+  }
+  return count;
+}
+
 // ---------------- Invoices ----------------
 export async function listInvoices(): Promise<Invoice[]> {
   const store = await getStore();

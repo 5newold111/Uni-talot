@@ -15,11 +15,13 @@ import {
   Receipt,
   Settings,
   Share2,
+  Zap,
 } from "lucide-react";
 import { logoutAction } from "@/app/actions";
 
 const NAV = [
   { href: "/", label: "ダッシュボード", icon: LayoutDashboard },
+  { href: "/quick", label: "かんたん入力", icon: Zap },
   { href: "/transactions", label: "取引・仕訳", icon: BookText },
   { href: "/invoices", label: "請求書", icon: FileText },
   { href: "/partners", label: "取引先", icon: Building2 },

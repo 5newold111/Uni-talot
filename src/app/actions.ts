@@ -8,6 +8,7 @@ import {
   createPartner,
   createShareLink,
   createTransaction,
+  createTransactionsBatch,
   createUser,
   deleteAccount,
   deleteFixedAsset,
@@ -94,6 +95,23 @@ export async function saveTransactionAction(
     revalidatePath("/");
     revalidatePath("/reports");
     return { ok: true };
+  } catch (e) {
+    return fail(e);
+  }
+}
+
+export async function saveTransactionsBatchAction(
+  inputs: TransactionInput[],
+): Promise<Result & { count?: number }> {
+  try {
+    if (!inputs || inputs.length === 0) {
+      return { ok: false, error: "登録するデータがありません" };
+    }
+    const count = await createTransactionsBatch(inputs);
+    revalidatePath("/transactions");
+    revalidatePath("/");
+    revalidatePath("/reports");
+    return { ok: true, count };
   } catch (e) {
     return fail(e);
   }
