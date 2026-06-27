@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>🔮 ミスティック・タロット占い</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="stars" id="stars"></div>
+
+  <header class="header">
+    <h1>🔮 ミスティック・タロット</h1>
+    <p class="subtitle">心を静めて、運命のカードを引きましょう</p>
+  </header>
+
+  <main class="container">
+    <!-- ステップ1: テーマ選択 -->
+    <section class="step" id="step-theme">
+      <h2 class="step-title">① 占いたいテーマを選んでください</h2>
+      <div class="theme-grid" id="theme-grid"></div>
+    </section>
+
+    <!-- ステップ2: スプレッド選択 -->
+    <section class="step hidden" id="step-spread">
+      <h2 class="step-title">② 占い方を選んでください</h2>
+      <div class="spread-grid" id="spread-grid"></div>
+      <button class="btn-back" data-back="theme">← テーマを選び直す</button>
+    </section>
+
+    <!-- ステップ3: カードを引く -->
+    <section class="step hidden" id="step-draw">
+      <h2 class="step-title" id="draw-title">③ 心の中で願いを念じながらカードを引いてください</h2>
+      <p class="draw-hint" id="draw-hint"></p>
+      <div class="deck-area" id="deck-area"></div>
+      <button class="btn-primary hidden" id="btn-reveal">結果を見る ✨</button>
+      <button class="btn-back" data-back="spread">← 占い方を選び直す</button>
+    </section>
+
+    <!-- ステップ4: 結果 -->
+    <section class="step hidden" id="step-result">
+      <h2 class="step-title" id="result-title">あなたへの占い結果</h2>
+      <div class="result-cards" id="result-cards"></div>
+      <div class="result-summary" id="result-summary"></div>
+      <button class="btn-primary" id="btn-restart">もう一度占う 🔄</button>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <p>タロットは未来を決めるものではなく、心を映す鏡です 🌙</p>
+  </footer>
+
+  <script src="cards.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>

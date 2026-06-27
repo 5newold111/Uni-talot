@@ -1,0 +1,292 @@
+:root {
+  --bg-deep: #0d0b1f;
+  --bg-mid: #1a1438;
+  --gold: #e8c87a;
+  --gold-soft: #c9a85f;
+  --purple: #6b4f9e;
+  --purple-light: #9d7fd1;
+  --text: #ece8f5;
+  --text-dim: #b3a9cf;
+  --card-back: linear-gradient(145deg, #2a1f5c, #3d2a7a);
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: "Hiragino Mincho ProN", "Yu Mincho", "Noto Serif JP", serif;
+  background: radial-gradient(ellipse at top, var(--bg-mid), var(--bg-deep) 70%);
+  color: var(--text);
+  min-height: 100vh;
+  overflow-x: hidden;
+  position: relative;
+}
+
+/* 星空背景 */
+.stars {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+}
+.star {
+  position: absolute;
+  background: #fff;
+  border-radius: 50%;
+  animation: twinkle var(--dur) ease-in-out infinite alternate;
+  opacity: 0.7;
+}
+@keyframes twinkle {
+  from { opacity: 0.15; transform: scale(0.8); }
+  to   { opacity: 0.9; transform: scale(1.2); }
+}
+
+.header {
+  text-align: center;
+  padding: 2.5rem 1rem 1rem;
+  position: relative;
+  z-index: 1;
+}
+.header h1 {
+  font-size: 2.4rem;
+  letter-spacing: 0.1em;
+  color: var(--gold);
+  text-shadow: 0 0 20px rgba(232, 200, 122, 0.4);
+}
+.subtitle {
+  margin-top: 0.6rem;
+  color: var(--text-dim);
+  font-size: 1rem;
+  letter-spacing: 0.05em;
+}
+
+.container {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 1.5rem 1rem 3rem;
+  position: relative;
+  z-index: 1;
+}
+
+.step { animation: fadeIn 0.6s ease; }
+.hidden { display: none !important; }
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.step-title {
+  text-align: center;
+  font-size: 1.3rem;
+  font-weight: normal;
+  margin-bottom: 1.8rem;
+  color: var(--gold);
+  letter-spacing: 0.05em;
+}
+
+/* テーマ・スプレッド選択 */
+.theme-grid, .spread-grid {
+  display: grid;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+.theme-grid { grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); }
+.spread-grid { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+
+.choice-card {
+  background: linear-gradient(145deg, rgba(61, 42, 122, 0.4), rgba(26, 20, 56, 0.6));
+  border: 1px solid rgba(157, 127, 209, 0.3);
+  border-radius: 16px;
+  padding: 1.5rem 1rem;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.25s ease;
+}
+.choice-card:hover {
+  transform: translateY(-5px);
+  border-color: var(--gold);
+  box-shadow: 0 8px 30px rgba(232, 200, 122, 0.25);
+}
+.choice-card .icon { font-size: 2.4rem; display: block; margin-bottom: 0.5rem; }
+.choice-card .label { font-size: 1.15rem; color: var(--gold); margin-bottom: 0.4rem; }
+.choice-card .desc { font-size: 0.85rem; color: var(--text-dim); line-height: 1.5; }
+
+/* デッキ（裏向きカードを並べる） */
+.deck-area {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+  margin: 2rem auto;
+  max-width: 760px;
+}
+.deck-card {
+  width: 54px;
+  height: 90px;
+  border-radius: 8px;
+  background: var(--card-back);
+  border: 1px solid var(--gold-soft);
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  position: relative;
+  flex-shrink: 0;
+}
+.deck-card::after {
+  content: "✦";
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--gold-soft);
+  font-size: 1.2rem;
+  opacity: 0.6;
+}
+.deck-card:hover:not(.picked) {
+  transform: translateY(-10px);
+  box-shadow: 0 6px 20px rgba(232, 200, 122, 0.4);
+}
+.deck-card.picked {
+  opacity: 0.25;
+  cursor: default;
+  transform: scale(0.9);
+}
+.deck-card.disabled { cursor: default; pointer-events: none; }
+
+.draw-hint {
+  text-align: center;
+  color: var(--gold);
+  font-size: 1.05rem;
+  min-height: 1.6rem;
+  letter-spacing: 0.05em;
+}
+
+/* 結果カード */
+.result-cards {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+.tarot-result {
+  width: 260px;
+  background: linear-gradient(160deg, rgba(61, 42, 122, 0.35), rgba(13, 11, 31, 0.6));
+  border: 1px solid rgba(157, 127, 209, 0.35);
+  border-radius: 18px;
+  padding: 1.4rem 1.2rem;
+  text-align: center;
+  animation: cardReveal 0.7s ease backwards;
+}
+@keyframes cardReveal {
+  from { opacity: 0; transform: rotateY(90deg) scale(0.8); }
+  to   { opacity: 1; transform: rotateY(0) scale(1); }
+}
+.tarot-result .position {
+  display: inline-block;
+  background: rgba(232, 200, 122, 0.15);
+  color: var(--gold);
+  font-size: 0.8rem;
+  padding: 0.25rem 0.8rem;
+  border-radius: 20px;
+  margin-bottom: 0.9rem;
+  letter-spacing: 0.1em;
+}
+.tarot-result .face {
+  font-size: 3.4rem;
+  margin: 0.4rem 0;
+  display: inline-block;
+  transition: transform 0.4s ease;
+}
+.tarot-result.reversed .face { transform: rotate(180deg); }
+.tarot-result .card-name { font-size: 1.3rem; color: var(--gold); }
+.tarot-result .card-name-en { font-size: 0.8rem; color: var(--text-dim); margin-bottom: 0.3rem; }
+.tarot-result .orientation {
+  font-size: 0.85rem;
+  margin: 0.5rem 0 0.8rem;
+  padding: 0.2rem 0;
+  font-weight: bold;
+}
+.tarot-result .orientation.up { color: #8be8a0; }
+.tarot-result .orientation.rev { color: #e89db3; }
+.tarot-result .keywords {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.4rem;
+  margin-bottom: 0.9rem;
+}
+.tarot-result .kw {
+  font-size: 0.72rem;
+  background: rgba(157, 127, 209, 0.2);
+  color: var(--purple-light);
+  padding: 0.18rem 0.6rem;
+  border-radius: 12px;
+}
+.tarot-result .meaning {
+  font-size: 0.92rem;
+  line-height: 1.7;
+  color: var(--text);
+  text-align: left;
+}
+
+.result-summary {
+  max-width: 640px;
+  margin: 0 auto 2rem;
+  background: rgba(232, 200, 122, 0.08);
+  border-left: 3px solid var(--gold);
+  border-radius: 8px;
+  padding: 1.2rem 1.5rem;
+  line-height: 1.8;
+  color: var(--text);
+  font-size: 0.95rem;
+}
+.result-summary .summary-label { color: var(--gold); font-size: 0.85rem; letter-spacing: 0.1em; }
+
+/* ボタン */
+.btn-primary {
+  display: block;
+  margin: 1.5rem auto 0;
+  background: linear-gradient(135deg, var(--gold), var(--gold-soft));
+  color: #1a1438;
+  border: none;
+  border-radius: 30px;
+  padding: 0.9rem 2.4rem;
+  font-size: 1.05rem;
+  font-family: inherit;
+  font-weight: bold;
+  cursor: pointer;
+  letter-spacing: 0.1em;
+  transition: all 0.25s ease;
+  box-shadow: 0 4px 20px rgba(232, 200, 122, 0.3);
+}
+.btn-primary:hover { transform: translateY(-3px); box-shadow: 0 8px 30px rgba(232, 200, 122, 0.5); }
+
+.btn-back {
+  display: block;
+  margin: 1.5rem auto 0;
+  background: transparent;
+  color: var(--text-dim);
+  border: 1px solid rgba(157, 127, 209, 0.3);
+  border-radius: 24px;
+  padding: 0.5rem 1.4rem;
+  font-size: 0.85rem;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.btn-back:hover { color: var(--gold); border-color: var(--gold); }
+
+.footer {
+  text-align: center;
+  padding: 1.5rem;
+  color: var(--text-dim);
+  font-size: 0.85rem;
+  position: relative;
+  z-index: 1;
+}
+
+@media (max-width: 600px) {
+  .header h1 { font-size: 1.8rem; }
+  .deck-card { width: 44px; height: 74px; }
+  .tarot-result { width: 100%; max-width: 320px; }
+}
