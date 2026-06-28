@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>🔮 ミスティック・タロット占い</title>
+  <title>🔮 シーズーうにの占いの館 ｜ タロット占い</title>
   <style>
 :root {
   --bg-deep: #0d0b1f;
@@ -28,6 +28,25 @@ body {
   position: relative;
 }
 
+/* 館の空気感：周辺減光（ビネット）と金の額縁 */
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background: radial-gradient(ellipse at center, transparent 55%, rgba(7, 5, 18, 0.7) 100%);
+}
+body::before {
+  content: "";
+  position: fixed;
+  inset: 10px;
+  pointer-events: none;
+  z-index: 2;
+  border: 1px solid rgba(232, 200, 122, 0.22);
+  border-radius: 14px;
+}
+
 /* 星空背景 */
 .stars {
   position: fixed;
@@ -49,22 +68,104 @@ body {
 
 .header {
   text-align: center;
-  padding: 2.5rem 1rem 1rem;
+  padding: 2.6rem 1rem 1.2rem;
   position: relative;
   z-index: 1;
 }
+
+/* 占い師うに のマスコット */
+.mascot {
+  width: 118px;
+  height: 118px;
+  margin: 0 auto 0.9rem;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 50% 38%, rgba(157,127,209,0.55), rgba(42,31,92,0.9) 70%);
+  border: 3px solid var(--gold);
+  box-shadow: 0 0 28px rgba(232,200,122,0.45), inset 0 0 18px rgba(13,11,31,0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: visible;
+  animation: floatY 4s ease-in-out infinite;
+}
+@keyframes floatY {
+  from { transform: translateY(-4px); }
+  to   { transform: translateY(4px); }
+}
+.mascot-face { font-size: 3.5rem; line-height: 1; filter: drop-shadow(0 3px 5px rgba(0,0,0,0.5)); }
+/* 三日月と星のあしらい（うにの帽子のモチーフ） */
+.mascot::before {
+  content: "🌙";
+  position: absolute;
+  top: -6px; left: -6px;
+  font-size: 1.4rem;
+  transform: rotate(-20deg);
+}
+.mascot::after {
+  content: "✨";
+  position: absolute;
+  bottom: -4px; right: -6px;
+  font-size: 1.3rem;
+}
+
+.brand-kicker {
+  color: var(--gold-soft);
+  font-size: 0.8rem;
+  letter-spacing: 0.4em;
+  margin-bottom: 0.3rem;
+  text-indent: 0.4em;
+}
 .header h1 {
-  font-size: 2.4rem;
-  letter-spacing: 0.1em;
+  font-size: 2.3rem;
+  line-height: 1.3;
+  letter-spacing: 0.12em;
   color: var(--gold);
-  text-shadow: 0 0 20px rgba(232, 200, 122, 0.4);
+  text-shadow: 0 0 20px rgba(232, 200, 122, 0.45);
 }
 .subtitle {
-  margin-top: 0.6rem;
+  margin-top: 0.7rem;
   color: var(--text-dim);
-  font-size: 1rem;
+  font-size: 0.98rem;
   letter-spacing: 0.05em;
+  line-height: 1.7;
 }
+
+/* うにのセリフ（語りかけ） */
+.uni-says {
+  max-width: 600px;
+  margin: 0 auto 1.6rem;
+  text-align: center;
+  color: var(--text);
+  font-size: 1rem;
+  line-height: 1.9;
+  background: rgba(61, 42, 122, 0.28);
+  border: 1px solid rgba(157, 127, 209, 0.3);
+  border-radius: 16px;
+  padding: 1.1rem 1.3rem;
+  position: relative;
+}
+.uni-says::before {
+  content: "🐶";
+  position: absolute;
+  top: -16px; left: 50%;
+  transform: translateX(-50%);
+  background: var(--bg-mid);
+  padding: 0 0.4rem;
+  font-size: 1.5rem;
+}
+.uni-sign {
+  text-align: right;
+  color: var(--gold-soft);
+  font-size: 0.86rem;
+  letter-spacing: 0.08em;
+  margin-top: 0.4rem;
+}
+
+/* スマホでのみ改行を有効化 */
+.sp-br { display: none; }
+@media (max-width: 600px) { .sp-br { display: inline; } }
 
 .container {
   max-width: 960px;
@@ -326,11 +427,18 @@ body {
 
 .footer {
   text-align: center;
-  padding: 1.5rem;
-  color: var(--text-dim);
-  font-size: 0.85rem;
+  padding: 1.8rem 1rem 2rem;
+  color: var(--gold-soft);
+  font-size: 0.95rem;
+  letter-spacing: 0.15em;
   position: relative;
   z-index: 1;
+}
+.footer-note {
+  margin-top: 0.4rem;
+  color: var(--text-dim);
+  font-size: 0.82rem;
+  letter-spacing: 0.03em;
 }
 
 @media (max-width: 600px) {
@@ -344,13 +452,18 @@ body {
   <div class="stars" id="stars"></div>
 
   <header class="header">
-    <h1>🔮 ミスティック・タロット</h1>
-    <p class="subtitle">心を静めて、運命のカードを引きましょう</p>
+    <div class="mascot" aria-hidden="true">
+      <span class="mascot-face">🐶</span>
+    </div>
+    <p class="brand-kicker">✦ 占いの館 ✦</p>
+    <h1>シーズーうにの<br class="sp-br">タロット占い</h1>
+    <p class="subtitle">ようこそ、わたしの館へ。<br class="sp-br">今宵のあなたの運命、この占い師うにが読み解きます 🔮</p>
   </header>
 
   <main class="container">
     <!-- ステップ1: テーマ選択 -->
     <section class="step" id="step-theme">
+      <p class="uni-says">「やぁ、よく来てくれたね。さあ、肩の力を抜いて……<br class="sp-br">まずは、どんなことを占いたいのか教えておくれ。」</p>
       <h2 class="step-title">① 占いたいテーマを選んでください</h2>
       <div class="theme-grid" id="theme-grid"></div>
     </section>
@@ -364,7 +477,7 @@ body {
 
     <!-- ステップ3: カードを引く -->
     <section class="step hidden" id="step-draw">
-      <h2 class="step-title" id="draw-title">③ 心の中で願いを念じながらカードを引いてください</h2>
+      <h2 class="step-title" id="draw-title">③ 心の中で願いを念じながら、カードを引いてください</h2>
       <p class="draw-hint" id="draw-hint"></p>
       <div class="deck-area" id="deck-area"></div>
       <button class="btn-primary hidden" id="btn-reveal">結果を見る ✨</button>
@@ -381,7 +494,8 @@ body {
   </main>
 
   <footer class="footer">
-    <p>タロットは未来を決めるものではなく、心を映す鏡です 🌙</p>
+    <p>🐾 シーズーうにの占いの館 🐾</p>
+    <p class="footer-note">タロットは未来を決めるものではなく、心を映す鏡です 🌙</p>
   </footer>
 
   <script>
@@ -942,7 +1056,7 @@ function buildSummary() {
   const upCount = state.picks.filter(p => !p.reversed).length;
   const total = state.picks.length;
 
-  let html = `<span class="summary-label">🌙 占い師からの総合鑑定</span>`;
+  let html = `<span class="summary-label">🐶 占い師うにの見立て</span>`;
 
   // 1枚引きと複数引きで導入を変える
   if (total === 1) {
@@ -979,7 +1093,8 @@ function buildSummary() {
   // 締めの一言（核心を突く）
   html += `<p class="closing">カードはあなたを縛るものではなく、心の奥で薄々気づいていたことを、` +
     `はっきりと言葉にしてくれる鏡です。出た結果をどう生かすか——最後の一手を選ぶのは、` +
-    `いつだってあなた自身の意志であることを、どうか忘れないでください。</p>`;
+    `いつだってあなた自身の意志であることを、どうか忘れないでおくれ。</p>`;
+  html += `<p class="uni-sign">― 占い師うに より 🐾</p>`;
 
   return html;
 }
