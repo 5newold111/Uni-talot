@@ -390,6 +390,11 @@ body::before {
 }
 .result-summary .arc-line b { color: var(--gold); font-weight: normal; }
 .result-summary .closing { color: var(--gold); }
+.result-summary .uni-open {
+  color: var(--purple-light);
+  font-style: italic;
+  margin-bottom: 1rem;
+}
 
 /* ボタン */
 .btn-primary {
@@ -424,6 +429,45 @@ body::before {
   transition: all 0.2s ease;
 }
 .btn-back:hover { color: var(--gold); border-color: var(--gold); }
+
+/* 占い演出オーバーレイ */
+.gazing-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  background: radial-gradient(ellipse at center, rgba(26,20,56,0.96), rgba(7,5,18,0.98));
+  animation: fadeIn 0.4s ease;
+}
+.gazing-orb {
+  font-size: 5rem;
+  filter: drop-shadow(0 0 30px rgba(157,127,209,0.8));
+  animation: orbPulse 1.4s ease-in-out infinite;
+}
+@keyframes orbPulse {
+  0%, 100% { transform: scale(1); filter: drop-shadow(0 0 20px rgba(157,127,209,0.6)); }
+  50%      { transform: scale(1.12); filter: drop-shadow(0 0 45px rgba(232,200,122,0.9)); }
+}
+.gazing-uni {
+  font-size: 2.4rem;
+  margin-top: -0.5rem;
+  animation: floatY 2s ease-in-out infinite;
+}
+.gazing-text {
+  margin-top: 0.8rem;
+  color: var(--gold);
+  font-size: 1.05rem;
+  letter-spacing: 0.08em;
+  animation: textBreath 1.6s ease-in-out infinite;
+}
+@keyframes textBreath {
+  from { opacity: 0.5; }
+  to   { opacity: 1; }
+}
 
 .footer {
   text-align: center;
@@ -470,6 +514,7 @@ body::before {
 
     <!-- ステップ2: スプレッド選択 -->
     <section class="step hidden" id="step-spread">
+      <p class="uni-says">「ふむ、なるほど……。<br class="sp-br">占い方によって、視える景色も変わるものでね。<br class="sp-br">今日はどの方法で、視てほしいかな？」</p>
       <h2 class="step-title">② 占い方を選んでください</h2>
       <div class="spread-grid" id="spread-grid"></div>
       <button class="btn-back" data-back="theme">← テーマを選び直す</button>
@@ -477,10 +522,11 @@ body::before {
 
     <!-- ステップ3: カードを引く -->
     <section class="step hidden" id="step-draw">
+      <p class="uni-says">「……ふぅ。今、カードに気を通したよ。<br class="sp-br">目を閉じて、知りたいことを心に思い浮かべて——<br class="sp-br">ピンと来た札を、そっと選んでごらん。」</p>
       <h2 class="step-title" id="draw-title">③ 心の中で願いを念じながら、カードを引いてください</h2>
       <p class="draw-hint" id="draw-hint"></p>
       <div class="deck-area" id="deck-area"></div>
-      <button class="btn-primary hidden" id="btn-reveal">結果を見る ✨</button>
+      <button class="btn-primary hidden" id="btn-reveal">うにに視てもらう 🔮</button>
       <button class="btn-back" data-back="spread">← 占い方を選び直す</button>
     </section>
 
@@ -489,9 +535,16 @@ body::before {
       <h2 class="step-title" id="result-title">あなたへの占い結果</h2>
       <div class="result-cards" id="result-cards"></div>
       <div class="result-summary" id="result-summary"></div>
-      <button class="btn-primary" id="btn-restart">もう一度占う 🔄</button>
+      <button class="btn-primary" id="btn-restart">もう一度、視てもらう 🔄</button>
     </section>
   </main>
+
+  <!-- 占い演出：うにが水晶玉をのぞき込む -->
+  <div class="gazing-overlay hidden" id="gazing">
+    <div class="gazing-orb">🔮</div>
+    <div class="gazing-uni">🐶</div>
+    <p class="gazing-text">うにが、水晶玉をじっと覗き込んでいる……</p>
+  </div>
 
   <footer class="footer">
     <p>🐾 シーズーうにの占いの館 🐾</p>
@@ -1057,6 +1110,7 @@ function buildSummary() {
   const total = state.picks.length;
 
   let html = `<span class="summary-label">🐶 占い師うにの見立て</span>`;
+  html += `<p class="uni-open">「……うん、視えてきたよ。落ち着いて、聞いておくれ。」</p>`;
 
   // 1枚引きと複数引きで導入を変える
   if (total === 1) {
@@ -1132,8 +1186,18 @@ function restart() {
   showStep("step-theme");
 }
 
+// うにが水晶玉を覗き込む演出をはさんでから結果へ
+function gazeThenReveal() {
+  const g = document.getElementById("gazing");
+  g.classList.remove("hidden");
+  setTimeout(() => {
+    g.classList.add("hidden");
+    showResult();
+  }, 1600);
+}
+
 // ===== イベント登録 =====
-document.getElementById("btn-reveal").addEventListener("click", showResult);
+document.getElementById("btn-reveal").addEventListener("click", gazeThenReveal);
 document.getElementById("btn-restart").addEventListener("click", restart);
 document.querySelectorAll(".btn-back").forEach(btn => {
   btn.addEventListener("click", () => showStep("step-" + btn.dataset.back));
