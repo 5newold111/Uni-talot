@@ -507,7 +507,7 @@ body::before {
   <main class="container">
     <!-- ステップ1: テーマ選択 -->
     <section class="step" id="step-theme">
-      <p class="uni-says">「やっほー、来てくれてありがとうワン！うにが視てあげる。<br class="sp-br">……あ、ごめん、いま おやつ食べてたの。えへへ。<br class="sp-br">それで、今日は何を占う？」</p>
+      <p class="uni-says">「やっほー、来てくれて嬉しいワン！ねぇねぇ、うにと一緒に視てくれる？<br class="sp-br">……あ、ごめん、いま さつまいも食べてたの。えへへ。<br class="sp-br">それで、今日は何を占う？」</p>
       <h2 class="step-title">① 占いたいテーマを選んでください</h2>
       <div class="theme-grid" id="theme-grid"></div>
     </section>
@@ -522,7 +522,7 @@ body::before {
 
     <!-- ステップ3: カードを引く -->
     <section class="step hidden" id="step-draw">
-      <p class="uni-says">「じゃ、カードに気を通すね……すーっ……ん、いい感じ。<br class="sp-br">心の中で願いごとを思い浮かべて、<br class="sp-br">ピンと来た札を、そっと選んでワン。」</p>
+      <p class="uni-says">「じゃ、カードに気を通すね……すーっ……ん、いい感じ。<br class="sp-br">ねぇ、そばにいてくれる？　心の中で願いごとを思い浮かべて、<br class="sp-br">ピンと来た札を、そっと選んでワン。」</p>
       <h2 class="step-title" id="draw-title">③ 心の中で願いを念じながら、カードを引いてください</h2>
       <p class="draw-hint" id="draw-hint"></p>
       <div class="deck-area" id="deck-area"></div>
@@ -1147,8 +1147,8 @@ function buildSummary() {
   // 締めの一言（緩く、でも芯はしっかり）
   html += `<p class="closing">カードはね、うにがあなたの心を映して見せてるだけなんだワン。` +
     `だからね、出た結果をどう生かすか——最後の一手を選ぶのは、いつだってあなた自身。` +
-    `うに、ちゃんと応援してるからね。</p>`;
-  html += `<p class="uni-sign">― 占い師うに 🐾（さて、占いも終わったし……そろそろおやつかな）</p>`;
+    `うに、ちゃんと応援してる。……ひとりで抱えこまないで、またうにに会いに来てね？</p>`;
+  html += `<p class="uni-sign">― 占い師うに 🐾（がんばったから……ごほうびにさつまいも食べたいな）</p>`;
 
   return html;
 }
