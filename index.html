@@ -379,11 +379,23 @@ body::before {
   font-size: 0.95rem;
 }
 .result-summary .summary-label {
-  display: block;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
   color: var(--gold);
-  font-size: 0.85rem;
+  font-size: 0.95rem;
   letter-spacing: 0.1em;
-  margin-bottom: 0.8rem;
+  margin-bottom: 0.9rem;
+}
+.uni-mini {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  object-fit: cover;
+  object-position: 50% 40%;
+  border: 1.5px solid var(--gold);
+  box-shadow: 0 0 10px rgba(232, 200, 122, 0.45);
+  flex-shrink: 0;
 }
 .result-summary p { margin-bottom: 0.9rem; }
 .result-summary p:last-child { margin-bottom: 0; }
@@ -1121,7 +1133,8 @@ function buildSummary() {
   const upCount = state.picks.filter(p => !p.reversed).length;
   const total = state.picks.length;
 
-  let html = `<span class="summary-label">🐶 占い師うにの見立て</span>`;
+  const uniSrc = document.getElementById("uni-portrait").src;
+  let html = `<span class="summary-label"><img class="uni-mini" src="${uniSrc}" alt="うに"> 占い師うにの見立て</span>`;
   html += `<p class="uni-open">「……うん、視えてきたワン。大事なことだから、ちゃんと聞いてね。」</p>`;
 
   // 1枚引きと複数引きで導入を変える
