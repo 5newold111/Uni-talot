@@ -307,7 +307,16 @@ h1, h2, h3 { font-weight: 400; text-wrap: balance; }
   letter-spacing: 0.2em;
   color: var(--bronze);
   font-size: 0.95rem;
-  min-height: 1.5rem;
+  min-height: 2.4rem;
+  line-height: 1.2;
+}
+.draw-count .n {
+  font-size: 2.1rem;
+  font-weight: 600;
+  color: var(--bronze-hi);
+  vertical-align: -0.12em;
+  margin: 0 0.15em;
+  letter-spacing: 0;
 }
 
 /* ====================== 結果カード（大アルカナ） ====================== */
@@ -701,7 +710,7 @@ h1, h2, h3 { font-weight: 400; text-wrap: balance; }
   <main>
     <!-- ステップ1：テーマ -->
     <section class="step" id="step-theme">
-      <p class="uni-say">やっほー、来てくれて嬉しいワン。ねぇねぇ、うにと一緒に視てくれる？　……あ、ごめん、いま さつまいも食べてたの。えへへ。それで、今日は何を占う？</p>
+      <p class="uni-say" id="uni-greeting"></p>
       <div class="step-head">
         <div class="kicker">First</div>
         <h2>占いたいテーマを選ぶ</h2>
@@ -1180,6 +1189,35 @@ const SPREAD_EN = { one: "One Oracle", three: "Past · Present · Future", situa
 const ROMAN = ["0","I","II","III","IV","V","VI","VII","VIII","IX","X",
   "XI","XII","XIII","XIV","XV","XVI","XVII","XVIII","XIX","XX","XXI"];
 
+// トップでうにが話す口上（毎回ランダムに1つ）
+const UNI_GREETINGS = [
+  "やっほー、来てくれて嬉しいワン。ねぇねぇ、うにと一緒に視てくれる？　……あ、ごめん、いま さつまいも食べてたの。えへへ。それで、今日は何を占う？",
+  "いらっしゃい。よく来てくれたねぇ。うに、さっきまでお昼寝してたんだ。……ふわぁ。目も覚めたし、あなたのこと、じっくり視てあげるワン。",
+  "あ、あなた。待ってたんだよ。ねぇ、そこ座って座って。今日はどんなことが気になってるの？　なんでも話してごらん、ワン。",
+  "ようこそ、うにの館へ。……ん？　なんだか少し疲れた顔してるワン。だいじょうぶ、ここでゆっくりしていって。まずは占いたいこと、教えて？",
+  "やっほー。うにね、今日はとびきり冴えてる気がするんだ。さつまいも食べたからかな。えへへ。じゃ、さっそく視てみようワン。",
+  "来てくれてありがとう。ねぇ、手、あったかい？　こっちおいで。カードはうそをつかないから、安心して。今日は何を知りたい？",
+  "おかえり……って、はじめましてだったらごめんね。うに、あなたのこと、なんだか前から知ってる気がするワン。さ、占おうか。",
+  "いらっしゃーい。ちょうどおやつ休憩してたの。さつまいも、半分こする？　……なんてね、冗談。それより、あなたの今日を視せてよ、ワン。",
+  "よく来たねぇ。星がきれいな夜は、カードもよく視えるんだ。うにに任せて。あなたの気になること、そっと教えて？",
+  "あ、来た来た。ねぇねぇ、今日はうにの隣にいてくれる？　ひとりだと占いに集中できないんだもん。……えへへ。さ、始めよ、ワン。",
+  "ようこそ。深呼吸して、すーっ……はい、いい子。心が静かなほど、カードはよく応えてくれるんだ。今日は何を占う？",
+  "やっほー、うにだよ。今日もあなたのために、こっそり水晶みがいておいたんだ。えらいでしょ？　ごほうびは、あとでさつまいもね。さ、占おう。",
+  "いらっしゃい。……あのね、内緒だけど、うにの占い、けっこう当たるんだよ。こう見えて真剣なんだから。何を知りたいか、教えてワン。",
+  "来てくれて嬉しいなぁ。ねぇ、今日あった小さなこと、あとで聞かせてね。……あ、その前に占いか。うっかりしてた。えへへ。何を視る？",
+  "ようこそ、旅の人。ここでは、あわてなくていいんだよ。うにのペースで、ゆっくり視ていこうワン。まずはテーマを選んで。",
+  "やっほー。ねむい目こすってでも、あなたのためなら視るワン。……うそ、ほんとはワクワクしてるんだ。さ、今日の運命、のぞいてみよ？",
+  "お、いいところに来たね。ちょうどカードたちがそわそわしてたんだ。あなたのこと、待ってたのかもね。何を占いたい、ワン？",
+  "いらっしゃい。あのね、占いってね、当てるためじゃなくて、あなたが前を向くためのものなんだ。……なんて、ちょっとかっこつけた。えへへ。始めよっか。",
+  "来てくれてありがとう。うに、あなたにいいこと視えるといいなって、さっきから思ってるんだ。さ、その願いごと、心にうかべて？",
+  "やっほー、うにの占いの館へようこそ。今日はどんな一日だった？　……うん、その気持ちごと、カードにのせてみよう。何を占う、ワン？",
+  "あ、鈴の音がした。あなたが来た合図だワン。ね、緊張しなくていいよ。うにはただの食いしんぼうな占い師だから。さ、何を視ようか。"
+];
+function setGreeting() {
+  document.getElementById("uni-greeting").textContent =
+    UNI_GREETINGS[Math.floor(Math.random() * UNI_GREETINGS.length)];
+}
+
 // ===== 状態 =====
 const state = { theme: null, spread: null, needed: 0, picks: [] };
 
@@ -1273,7 +1311,7 @@ function renderDeck() {
 function updateCount() {
   const left = state.needed - state.picks.length;
   const el = document.getElementById("draw-count");
-  el.textContent = left > 0 ? `のこり ${left} 枚` : "すべての札が揃いました";
+  el.innerHTML = left > 0 ? `のこり <span class="n">${left}</span> 枚` : "すべての札が揃いました";
 }
 function pick(el, idx) {
   if (el.classList.contains("taken") || state.picks.length >= state.needed) return;
@@ -1367,7 +1405,7 @@ function gazeThenReveal() {
 
 // ===== ユーティリティ =====
 function shuffle(a) { for (let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];} return a; }
-function restart() { state.theme=state.spread=null; state.picks=[]; state.needed=0; renderThemes(); show("step-theme"); }
+function restart() { state.theme=state.spread=null; state.picks=[]; state.needed=0; setGreeting(); renderThemes(); show("step-theme"); }
 
 // ===== 初期化 =====
 document.getElementById("btn-reveal").addEventListener("click", gazeThenReveal);
@@ -1375,6 +1413,7 @@ document.getElementById("btn-restart").addEventListener("click", restart);
 document.querySelectorAll("[data-back]").forEach(b => b.addEventListener("click", () => show("step-" + b.dataset.back)));
 document.getElementById("gaze-uni").src = document.getElementById("uni-portrait").src;
 initSky();
+setGreeting();
 renderThemes();
 </script>
 </body>
