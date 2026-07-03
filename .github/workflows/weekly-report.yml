@@ -1,0 +1,56 @@
+name: Weekly Report (Sunday 12:00 JST)
+
+# 毎週日曜 12:00 JST（= 03:00 UTC）に評価データを集計し、
+# martinniche@gmail.com へレポートをメール送信する。
+#
+# 必要なリポジトリシークレット（Settings → Secrets and variables → Actions → New repository secret）:
+#   NETLIFY_AUTH_TOKEN … Netlify の Personal access token（User settings → Applications → New access token）
+#   MAIL_USERNAME      … 送信元 Gmail アドレス（例: 5newold111@gmail.com）
+#   MAIL_APP_PASSWORD  … Gmail のアプリパスワード（Google アカウント → セキュリティ → 2段階認証 → アプリパスワード）
+
+on:
+  schedule:
+    - cron: "3 3 * * 0"   # 日曜 03:03 UTC = 12:03 JST
+  workflow_dispatch:       # 手動テスト実行用
+
+permissions:
+  contents: read
+
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Aggregate weekly data
+        env:
+          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+        run: node report/aggregate.mjs
+
+      - name: Compose subject
+        id: subject
+        run: echo "subject=【うにの占いの館】週次レポート（$(date -u -d '7 days ago' +%m/%d)〜$(date -u +%m/%d)）" >> "$GITHUB_OUTPUT"
+
+      - name: Send email
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 465
+          secure: true
+          username: ${{ secrets.MAIL_USERNAME }}
+          password: ${{ secrets.MAIL_APP_PASSWORD }}
+          from: うにの占いの館 <${{ secrets.MAIL_USERNAME }}>
+          to: martinniche@gmail.com
+          subject: ${{ steps.subject.outputs.subject }}
+          body: file://report.md
+
+      - name: Upload report artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: weekly-report
+          path: report.md
+          retention-days: 90
