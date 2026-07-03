@@ -215,6 +215,68 @@ h1, h2, h3 { font-weight: 400; text-wrap: balance; }
 .uni-say::before { top: 6px; left: 6px; border-right: 0; border-bottom: 0; }
 .uni-say::after  { bottom: 6px; right: 6px; border-left: 0; border-top: 0; }
 
+/* ====================== 相談入力 ====================== */
+.concern-box {
+  max-width: 620px;
+  margin: 0 auto 2rem;
+}
+.concern-label {
+  display: block;
+  font-family: var(--serif-jp);
+  font-size: 0.88rem;
+  letter-spacing: 0.1em;
+  color: var(--bronze);
+  margin-bottom: 0.5rem;
+}
+#concern {
+  width: 100%;
+  background: rgba(16, 21, 44, 0.65);
+  border: 1px solid var(--line);
+  color: var(--ivory);
+  font-family: var(--serif-jp);
+  font-size: 1rem;
+  line-height: 1.8;
+  padding: 0.9rem 1rem;
+  resize: vertical;
+  min-height: 5.2em;
+  transition: border-color 0.25s ease, box-shadow 0.25s ease;
+}
+#concern::placeholder { color: var(--ivory-dim); opacity: 0.7; }
+#concern:focus {
+  outline: none;
+  border-color: var(--bronze);
+  box-shadow: 0 0 0 1px rgba(197,160,92,0.35), 0 6px 22px rgba(0,0,0,0.35);
+}
+.concern-hint {
+  font-size: 0.8rem;
+  color: var(--ivory-dim);
+  line-height: 1.7;
+  margin-top: 0.55rem;
+}
+
+/* 鑑定内の「うにからの答え」 */
+.concern-answer {
+  border: 1px solid var(--bronze-lo);
+  background: rgba(197, 160, 92, 0.06);
+  padding: 1.1rem 1.25rem;
+  margin: 1.2rem 0 1rem;
+}
+.concern-answer .ca-label {
+  display: block;
+  font-family: var(--serif-la);
+  font-size: 0.7rem;
+  letter-spacing: 0.26em;
+  text-transform: uppercase;
+  color: var(--bronze);
+  margin-bottom: 0.6rem;
+}
+.concern-answer .ca-quote {
+  font-style: italic;
+  color: var(--ivory-dim);
+  font-size: 0.92rem;
+  margin-bottom: 0.7rem;
+}
+
 /* ====================== セクション見出し ====================== */
 .step { animation: rise 0.6s ease both; }
 .hidden { display: none !important; }
@@ -767,12 +829,18 @@ h1, h2, h3 { font-weight: 400; text-wrap: balance; }
   </header>
 
   <main>
-    <!-- ステップ1：テーマ -->
+    <!-- ステップ1：相談とテーマ -->
     <section class="step" id="step-theme">
       <p class="uni-say" id="uni-greeting"></p>
       <div class="step-head">
         <div class="kicker">First</div>
-        <h2>占いたいテーマを選ぶ</h2>
+        <h2>相談ごとを、うにに聴かせて</h2>
+      </div>
+      <div class="concern-box">
+        <label class="concern-label" for="concern">具体的な相談ごと（書かなくてもOK）</label>
+        <textarea id="concern" maxlength="200" rows="3"
+          placeholder="例：職場の人間関係に悩んでいます。今の仕事を続けるべきか迷っていて……"></textarea>
+        <p class="concern-hint">書いてくれたら、うにが鑑定の最後にその相談へまっすぐ答えるワン。下のジャンルを選ぶと占いがはじまるよ。</p>
       </div>
       <div class="grid themes" id="theme-grid"></div>
     </section>
@@ -1281,7 +1349,83 @@ function setGreeting() {
 }
 
 // ===== 状態 =====
-const state = { theme: null, spread: null, needed: 0, picks: [] };
+const state = { theme: null, spread: null, needed: 0, picks: [], concern: "" };
+
+// ===== 相談テキストの読み取り =====
+// キーワードでお悩みの種類を推定し、札の正逆バランス（追い風/整えの時）に合わせた
+// うにの答えを返す。up: 正位置が多い時 / rev: 逆位置が多い時
+const CONCERN_TOPICS = [
+  { keys: ["復縁", "元カレ", "元カノ", "より戻", "元夫", "元妻"],
+    up: "復縁の望みね。札は「過去がただ終わったのではなく、学びとして実り始めている」と言ってるワン。連絡を取るなら、昔の関係の再現じゃなく、新しい関係を始めるつもりで。そこを間違えなければ、流れは味方してくれるよ。",
+    rev: "復縁の望みね。……正直に言うワン。いまの札は「過去を見つめ直す時間がまだ必要」と出てる。急いで動くより、なぜ離れたのかを自分の言葉で説明できるようになってから。それができた時、戻るか手放すか、本当の答えが見えるよ。" },
+  { keys: ["片思い", "好きな人", "告白", "振り向"],
+    up: "その恋、札の並びは追い風だワン。想いは隠すより、少しずつ見せていく方が動く時。完璧な告白を狙うより、小さな接点を重ねてごらん。相手の心の扉は、たぶんあなたが思うより開いてる。",
+    rev: "その恋ね。いまの札は「焦りが空回りを生む」と出てるワン。想いをぶつける前に、まず相手をよく知る時間を。あなた自身の魅力を整える期間だと思えば、この足踏みは無駄じゃないよ。" },
+  { keys: ["結婚", "婚活", "プロポーズ", "入籍"],
+    up: "結婚のことだね。札は「土台が育っている」と示してるワン。条件を数えるより、一緒にいて心が安らぐかを軸に決めて。その基準で選んだ道なら、この先も揺れにくいよ。",
+    rev: "結婚のことだね。札は「決断の前に、見えていない不安を言葉にして」と言ってるワン。相手への迷いか、自分の準備か、世間の目か——不安の正体を分けて考えると、進むべきか待つべきかが自然と見えるよ。" },
+  { keys: ["別れ", "離婚", "距離を置", "冷めた", "終わらせ"],
+    up: "別れを考えてるんだね。札は「区切りは終わりではなく再生」と出てるワン。決めたなら、罪悪感より感謝で締めくくって。ちゃんと終わらせた関係だけが、次の幸せの土台になるよ。",
+    rev: "別れを考えてるんだね。でも札は「感情の波の上で決めないで」と言ってるワン。疲れている時の結論は、たいてい極端になる。少し休んで、心が凪いだ日にもう一度同じ問いを自分にしてみて。答えが変わらなければ、それが本物だよ。" },
+  { keys: ["転職", "辞めたい", "退職", "辞めるべき"],
+    up: "転職の迷いだね。札の流れは「動いてよし」と出てるワン。ただし逃げ出す転職じゃなく、向かっていく転職に。次の場所で何を得たいかを3つ書き出せたら、もう準備はできてる。",
+    rev: "転職の迷いだね。いまの札は「動く前に、いまの場所でやり残しがないか確かめて」と出てるワン。不満の正体が環境なのか、自分の関わり方なのか——そこを見極めてからでも遅くない。準備した人の転機は強いよ。" },
+  { keys: ["上司", "同僚", "部下", "職場の人", "パワハラ", "職場で"],
+    up: "職場の人間関係ね。札は「あなたの誠実さが少しずつ伝わり始めている」と出てるワン。無理に好かれようとしなくていい。淡々と、フェアに。距離を保ったままでも信頼は築けるよ。",
+    rev: "職場の人間関係ね。札は「ひとりで抱えるのが一番危ない」と言ってるワン。我慢は解決じゃないよ。信頼できる人か、しかるべき窓口に、事実を記録して相談して。あなたを守ることが最優先だワン。" },
+  { keys: ["起業", "独立", "フリーランス", "挑戦したい", "新しいこと"],
+    up: "新しい挑戦だね。札は「始めるのに良い時」と出てるワン。大きく賭けるより、小さく試して早く学ぶこと。最初の一歩は完璧じゃなくていい、踏み出した人にしか次の景色は見えないから。",
+    rev: "新しい挑戦だね。札は「情熱は本物、でも土台がまだ」と出てるワン。やめろとは言ってない。走り出す前に、お金の計画と撤退ラインだけ決めておいて。備えた挑戦は、怖くないよ。" },
+  { keys: ["お金", "貯金", "借金", "投資", "家計", "金欠", "節約"],
+    up: "お金の相談だね。札は「流れが整い始めている」と出てるワン。今は増やすより仕組みを作る時。先取り貯金でも家計の見える化でも、自動で回るルールを一つ作れば、あとはそれが働いてくれる。",
+    rev: "お金の相談だね。札は「感情とお金が絡まってる」と出てるワン。不安な時ほど財布は乱れるもの。まず1ヶ月、記録だけつけてみて。責めなくていい、眺めるだけで使い方は変わり始めるよ。" },
+  { keys: ["友達", "友人", "親友", "グループ", "仲間はずれ"],
+    up: "友だちのことだね。札は「その縁は手入れすれば育つ」と出てるワン。すれ違いは、どちらかが悪いんじゃなくてリズムのずれ。あなたから小さな一言を送ってみて。それで戻る縁は、本物だよ。",
+    rev: "友だちのことだね。札は「合わなくなった縁を無理に握りしめないで」と言ってるワン。人は変わるし、離れる時期もある。罪悪感で続ける関係より、いまのあなたを大切にしてくれる場所に力を注いで。" },
+  { keys: ["家族", "親", "母", "父", "兄", "姉", "妹", "弟", "子ども", "子供", "義理"],
+    up: "家族のことだね。札は「対話の窓が開いている」と出てるワン。正論より、まず「わかってほしい気持ち」を先に渡して。家族って、正しさじゃなくて安心で繋がり直せるものだから。",
+    rev: "家族のことだね。札は「近すぎる距離が、いまは棘になってる」と出てるワン。少し離れるのは冷たさじゃないよ。体の距離でも心の距離でも、健全な距離はあなたと相手の両方を守る。まず自分の心の安全を確保して。" },
+  { keys: ["健康", "体調", "疲れ", "眠れ", "メンタル", "しんどい", "つらい", "病気"],
+    up: "心と体のことだね。札は「回復の流れに乗り始めている」と出てるワン。頑張って治すんじゃなくて、休むことを予定に入れて。睡眠と食事と散歩——地味な三つが、いちばん強い薬だよ。",
+    rev: "心と体のことだね。……無理してたの、札にちゃんと出てるワン。いまは踏ん張る時じゃなくて、降ろす時。つらさが続くなら、専門の人に頼るのは弱さじゃなくて賢さだからね。うにはあなたの味方だよ。" },
+  { keys: ["進路", "受験", "試験", "勉強", "資格", "合格"],
+    up: "学びの挑戦だね。札は「積み上げが実る流れ」と出てるワン。新しい参考書より、できなかった問題の復習を。合格する人は特別なことをした人じゃなく、基本を最後まで手放さなかった人だよ。",
+    rev: "学びの挑戦だね。札は「量より整えなおし」と出てるワン。焦って詰め込むほど抜けていく時期。計画を一度ゼロから引き直して、睡眠を削らないこと。整った頭が、いちばん覚えるからね。" },
+  { keys: ["引っ越し", "移住", "住まい", "実家を出"],
+    up: "住まいの変化だね。札は「環境を変えることが運を動かす」と出てるワン。新しい場所はあなたの新しい習慣を作る。直感で「ここだ」と思えた場所なら、その感覚を信じていいよ。",
+    rev: "住まいの変化だね。札は「タイミングをもう少し見て」と出てるワン。焦って決めた場所は、あとで小さな後悔を呼びがち。条件の優先順位を3つに絞ってから、また探してごらん。" }
+];
+
+function esc(s) {
+  return s.replace(/[&<>"']/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c]));
+}
+function shorten(s, n) { return s.length > n ? s.slice(0, n) + "……" : s; }
+
+// 相談への、うにの答えを組み立てる
+function concernAnswer() {
+  if (!state.concern) return "";
+  const upCount = state.picks.filter(p => !p.reversed).length;
+  const positive = upCount * 2 >= state.picks.length;
+  let topicMsg = null;
+  for (const t of CONCERN_TOPICS) {
+    if (t.keys.some(k => state.concern.includes(k))) { topicMsg = positive ? t.up : t.rev; break; }
+  }
+  const last = state.picks[state.picks.length - 1];
+  const lastPos = SPREADS[state.spread].positions[state.picks.length - 1];
+  const d = (last.reversed ? last.card.reversed : last.card.upright)[state.theme];
+
+  let h = `<div class="concern-answer">`;
+  h += `<span class="ca-label">Uni&rsquo;s Answer ・ 相談への答え</span>`;
+  h += `<p class="ca-quote">「${esc(shorten(state.concern, 90))}」</p>`;
+  h += `<p>うん、その相談、ちゃんと聴いたワン。`;
+  h += topicMsg || (positive
+    ? "札の並びから視るかぎり、その件はいま良い流れの中にあるよ。結論を先延ばしにする理由は、外にはあまりない。あなたの想いに素直に、一歩動いて大丈夫。"
+    : "札の並びは「少し立ち止まって整える時」と言ってるワン。いま無理に結論を出すと、不安が選ばせた答えになりやすい。まず気持ちを書き出して、事実と想像を分けるところから始めてほしいな。");
+  h += `</p>`;
+  h += `<p>とくに「${lastPos}」に出た「${last.card.name}」の札が、あなたのその問いへの鍵だワン。——${d.advice}</p>`;
+  h += `</div>`;
+  return h;
+}
 
 function svg(id, cls) { return `<svg class="${cls||''}" aria-hidden="true"><use href="#${id}"></use></svg>`; }
 
@@ -1334,7 +1478,12 @@ function renderThemes() {
     el.className = "pick";
     el.style.setProperty("--accent", m.accent);
     el.innerHTML = `${svg(m.icon, "emblem")}<div class="name">${t.name}</div><div class="en">${m.en}</div>`;
-    el.addEventListener("click", () => { state.theme = key; renderSpreads(); show("step-spread"); });
+    el.addEventListener("click", () => {
+      state.theme = key;
+      state.concern = document.getElementById("concern").value.trim();
+      renderSpreads();
+      show("step-spread");
+    });
     grid.appendChild(el);
   }
 }
@@ -1444,6 +1593,7 @@ function buildSummary() {
     h += `<p>${tone}</p>`;
   }
 
+  h += concernAnswer();
   h += `<p class="close">カードはね、うにがあなたの心を映して見せてるだけなんだワン。だからね、出た結果をどう生かすか——最後の一手を選ぶのは、いつだってあなた自身。うに、ちゃんと応援してる。……ひとりで抱えこまないで、またうにに会いに来てね。</p>`;
   h += `<p class="sign">― 占い師うに（がんばったから、ごほうびにさつまいも食べたいな）</p>`;
   return h;
