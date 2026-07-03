@@ -35,11 +35,46 @@
 - シャッフルとランダムな正逆位置で毎回違う結果
 - 水晶玉を覗き込む占い演出、星空アニメーション
 - スマホ対応のレスポンシブ、`prefers-reduced-motion` 配慮
+- **PWA対応** … スマホのホーム画面に追加でき、オフラインでも起動（`manifest.webmanifest` ＋ Service Worker）
+- **SNSシェア最適化** … OGP / Twitterカードで、リンク共有時にうにの写真つきプレビューを表示
+- **結果シェアボタン** … 占い結果を Web Share API（対応外はリンクコピー）で友だちに共有
+
+## Webアプリとして公開する（多くの人に届ける）
+
+このリポジトリは静的サイトなので、次のいずれかで無料公開できます。どれも独自URLで配布可能です。
+
+### 方法1：GitHub Pages（このリポジトリを公開する場合）
+1. リポジトリを **Public** にする（Settings → General → Danger Zone → Change visibility）
+2. Settings → **Pages** → Build and deployment → Source を **「GitHub Actions」** に設定
+3. 以後、`main` への push で `.github/workflows/deploy.yml` が自動デプロイ
+4. 公開URL： `https://5newold111.github.io/furniture-3D-modeling-/`
+
+### 方法2：Cloudflare Pages / Netlify（リポジトリを非公開のまま公開したい場合）
+- **Netlify**： [app.netlify.com/drop](https://app.netlify.com/drop) にプロジェクトのフォルダをドラッグ＆ドロップするだけで即時公開（アカウント連携なしでも可）。
+- **Cloudflare Pages / Vercel**： GitHub 連携で非公開リポジトリからもデプロイ可能。ビルド設定なし（フレームワーク: None、出力: ルート）。
+- 公開後は `index.html` の OGP メタ（`og:url` / `og:image`）と `manifest` の URL を、実際のドメインに合わせて更新してください。
+
+### 公開後に伸ばすための施策（提案）
+- **独自ドメイン**（例：`uni-tarot.app`）を割り当てると信頼感と記憶性が上がる
+- **アクセス解析**（Cloudflare Web Analytics や Plausible などプライバシー配慮型）で流入を把握
+- **日替わりの一枚**や**結果カードの画像保存**機能を追加して再訪・シェアを促進
+- **X / Instagram**（本家 @shih_tzu_uni）と連携し、うにの世界観で導線をつくる
 
 ## ファイル構成
 
-`index.html` の **1ファイルだけ** で完結（CSS・JavaScript・カードデータ・うにの写真をすべて内包）。
-他のファイルは不要で、開くだけで動きます。
+アプリ本体は `index.html` の **1ファイル** で完結（CSS・JavaScript・カードデータ・うにの写真をすべて内包）。
+ローカルで遊ぶだけならこの1ファイルを開くだけでOK。以下はWebアプリ（PWA）として公開するための付随ファイルです。
+
+| ファイル | 役割 |
+|---|---|
+| `index.html` | アプリ本体（自己完結） |
+| `manifest.webmanifest` | PWA設定（アプリ名・アイコン・表示） |
+| `sw.js` | Service Worker（オフライン対応・キャッシュ） |
+| `icon-192.png` / `icon-512.png` | アプリアイコン（うにの写真から生成） |
+| `apple-touch-icon.png` / `favicon-32.png` | iOS・ブラウザ用アイコン |
+| `og-image.png` | SNS共有プレビュー画像（1200×630） |
+| `uni.jpg` | うにの元写真（素材） |
+| `.github/workflows/deploy.yml` | GitHub Pages 自動デプロイ |
 
 ## 動作環境
 

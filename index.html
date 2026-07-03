@@ -3,7 +3,32 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>シーズーうにの占いの館 ｜ 大アルカナ・タロット</title>
+  <title>シーズーうにの占いの館 ｜ 大アルカナ・タロット占い</title>
+  <meta name="description" content="本物のシーズー犬「うに」が、大アルカナ22枚であなたの今を静かに読み解くタロット占い。テーマとスプレッドを選んで札を引くだけ。">
+  <link rel="canonical" href="https://5newold111.github.io/furniture-3D-modeling-/">
+  <meta name="theme-color" content="#0a0e1f">
+  <!-- OGP / Twitter -->
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="シーズーうにの占いの館">
+  <meta property="og:title" content="シーズーうにの占いの館 — 大アルカナ・タロット占い">
+  <meta property="og:description" content="本物のシーズー犬「うに」が、大アルカナ22枚であなたの今を読み解きます。">
+  <meta property="og:url" content="https://5newold111.github.io/furniture-3D-modeling-/">
+  <meta property="og:image" content="https://5newold111.github.io/furniture-3D-modeling-/og-image.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:locale" content="ja_JP">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="シーズーうにの占いの館 — タロット占い">
+  <meta name="twitter:description" content="本物のシーズー犬「うに」が、大アルカナ22枚であなたの今を読み解きます。">
+  <meta name="twitter:image" content="https://5newold111.github.io/furniture-3D-modeling-/og-image.png">
+  <!-- PWA -->
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="うにの占い">
+  <meta name="mobile-web-app-capable" content="yes">
   <style>
 :root {
   /* 深い夜のインク地 × アンティーク真鍮金（派手な金は使わない） */
@@ -526,6 +551,34 @@ h1, h2, h3 { font-weight: 400; text-wrap: balance; }
 }
 .btn-link:hover, .btn-link:focus-visible { color: var(--bronze); border-color: var(--bronze); outline: none; }
 .center-row { text-align: center; }
+.btn-pair {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.8rem 1rem;
+  justify-content: center;
+}
+.btn-pair .btn { margin: 0; }
+
+/* トースト（コピー通知など） */
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: 28px;
+  transform: translate(-50%, 20px);
+  z-index: 60;
+  background: var(--ink-2);
+  color: var(--bronze-hi);
+  border: 1px solid var(--bronze);
+  padding: 0.7rem 1.4rem;
+  font-family: var(--serif-jp);
+  font-size: 0.95rem;
+  letter-spacing: 0.06em;
+  box-shadow: 0 8px 28px rgba(0,0,0,0.5);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+.toast.show { opacity: 1; transform: translate(-50%, 0); }
 
 /* ====================== 占い演出 ====================== */
 .gaze {
@@ -691,6 +744,12 @@ h1, h2, h3 { font-weight: 400; text-wrap: balance; }
       <path d="M6 12 a6 6 0 1 1 2 4.4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
       <path d="M6 7 v5 h5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
     </symbol>
+    <symbol id="ic-share" viewBox="0 0 24 24">
+      <g fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="18" cy="5" r="2.4"/><circle cx="6" cy="12" r="2.4"/><circle cx="18" cy="19" r="2.4"/>
+        <path d="M8.2 10.8 L15.8 6.2 M8.2 13.2 L15.8 17.8"/>
+      </g>
+    </symbol>
   </defs>
 </svg>
 
@@ -749,8 +808,9 @@ h1, h2, h3 { font-weight: 400; text-wrap: balance; }
       <div class="result-title" id="result-title"></div>
       <div class="plates" id="plates"></div>
       <div class="reading-scroll" id="reading-scroll"></div>
-      <div class="center-row">
-        <button class="btn center" id="btn-restart"><svg class="ic"><use href="#ic-return"></use></svg>もう一度、視てもらう</button>
+      <div class="center-row btn-pair">
+        <button class="btn" id="btn-share"><svg class="ic"><use href="#ic-share"></use></svg>この占いをシェア</button>
+        <button class="btn" id="btn-restart"><svg class="ic"><use href="#ic-return"></use></svg>もう一度、視てもらう</button>
       </div>
     </section>
   </main>
@@ -760,6 +820,8 @@ h1, h2, h3 { font-weight: 400; text-wrap: balance; }
   <div class="mark">シーズーうにの占いの館</div>
   <div class="note">タロットは未来を決めるものではなく、心を映す鏡です</div>
 </footer>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 <!-- 占い演出 -->
 <div class="gaze hidden" id="gaze">
@@ -1410,6 +1472,41 @@ function restart() { state.theme=state.spread=null; state.picks=[]; state.needed
 // ===== 初期化 =====
 document.getElementById("btn-reveal").addEventListener("click", gazeThenReveal);
 document.getElementById("btn-restart").addEventListener("click", restart);
+document.getElementById("btn-share").addEventListener("click", shareReading);
+
+// ===== 結果をシェア =====
+let toastTimer;
+function toast(msg) {
+  const t = document.getElementById("toast");
+  t.textContent = msg;
+  t.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove("show"), 2600);
+}
+function shareReading() {
+  const theme = state.theme ? THEMES[state.theme].name : "";
+  const spread = state.spread ? SPREADS[state.spread].name : "";
+  const first = state.picks[0] ? state.picks[0].card.name : "";
+  const url = location.origin + location.pathname;
+  const text = `シーズーうにの占いの館で【${theme}・${spread}】を占ったワン。` +
+    (first ? `最初の一枚は「${first}」。` : "") + `あなたも占ってみる？`;
+  if (navigator.share) {
+    navigator.share({ title: "シーズーうにの占いの館", text, url }).catch(() => {});
+  } else if (navigator.clipboard) {
+    navigator.clipboard.writeText(text + "\n" + url)
+      .then(() => toast("リンクをコピーしたワン"))
+      .catch(() => toast(url));
+  } else {
+    toast(url);
+  }
+}
+
+// ===== PWA：Service Worker 登録 =====
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("sw.js").catch(() => {});
+  });
+}
 document.querySelectorAll("[data-back]").forEach(b => b.addEventListener("click", () => show("step-" + b.dataset.back)));
 document.getElementById("gaze-uni").src = document.getElementById("uni-portrait").src;
 initSky();
