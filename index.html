@@ -612,6 +612,64 @@ h1, h2, h3 { font-weight: 400; text-wrap: balance; }
   transition: color 0.25s ease, border-color 0.25s ease;
 }
 .btn-link:hover, .btn-link:focus-visible { color: var(--bronze); border-color: var(--bronze); outline: none; }
+/* ====================== さつまいも評価 ====================== */
+.rate-box {
+  max-width: 560px;
+  margin: 0 auto 2rem;
+  text-align: center;
+  border: 1px solid var(--line);
+  background: rgba(23, 24, 48, 0.4);
+  padding: 1.5rem 1.3rem 1.2rem;
+}
+.rate-title {
+  font-family: var(--serif-jp);
+  color: var(--ivory);
+  font-size: 1rem;
+  line-height: 1.9;
+  margin-bottom: 1.1rem;
+}
+.rate-btns {
+  display: flex;
+  justify-content: center;
+  gap: 0.9rem;
+  flex-wrap: wrap;
+}
+.rate-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.45rem;
+  min-width: 96px;
+  padding: 0.9rem 1rem 0.75rem;
+  background: transparent;
+  border: 1px solid var(--line);
+  color: var(--bronze-hi);
+  font-family: var(--serif-jp);
+  cursor: pointer;
+  transition: border-color 0.25s ease, transform 0.25s ease, background 0.25s ease;
+}
+.rate-btn:hover, .rate-btn:focus-visible {
+  border-color: var(--bronze);
+  transform: translateY(-3px);
+  background: rgba(197,160,92,0.07);
+  outline: none;
+}
+.rate-btn .imo-row { display: flex; gap: 2px; min-height: 22px; align-items: center; }
+.rate-btn .imo { width: 22px; height: 22px; color: var(--bronze); }
+.rate-btn .rate-label { font-size: 0.92rem; letter-spacing: 0.1em; }
+.rate-thanks {
+  color: var(--bronze-hi);
+  font-size: 0.98rem;
+  line-height: 1.9;
+  margin-top: 0.9rem;
+}
+.rate-note {
+  color: var(--ivory-dim);
+  font-size: 0.72rem;
+  letter-spacing: 0.03em;
+  margin-top: 0.9rem;
+}
+
 .center-row { text-align: center; }
 .btn-pair {
   display: flex;
@@ -806,6 +864,14 @@ h1, h2, h3 { font-weight: 400; text-wrap: balance; }
       <path d="M6 12 a6 6 0 1 1 2 4.4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
       <path d="M6 7 v5 h5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
     </symbol>
+    <symbol id="ic-imo" viewBox="0 0 24 24">
+      <g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round">
+        <path d="M4.5 14.5 C2.5 11 6 5.5 11 6.2 C16 7 21.5 10 20.3 14 C19 18.5 12.5 20.5 8.8 19.2 C6.4 18.3 5.4 16.3 4.5 14.5 Z"/>
+      </g>
+      <g fill="currentColor">
+        <circle cx="9" cy="11" r="0.8"/><circle cx="14" cy="13.4" r="0.8"/><circle cx="11.6" cy="16" r="0.7"/>
+      </g>
+    </symbol>
     <symbol id="ic-share" viewBox="0 0 24 24">
       <g fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
         <circle cx="18" cy="5" r="2.4"/><circle cx="6" cy="12" r="2.4"/><circle cx="18" cy="19" r="2.4"/>
@@ -876,6 +942,28 @@ h1, h2, h3 { font-weight: 400; text-wrap: balance; }
       <div class="result-title" id="result-title"></div>
       <div class="plates" id="plates"></div>
       <div class="reading-scroll" id="reading-scroll"></div>
+
+      <!-- さつまいも評価 -->
+      <div class="rate-box" id="rate-box">
+        <p class="rate-title">今日の鑑定、心に届いたなら——<br class="sp-br">うにに さつまいもをあげてくれる？</p>
+        <div class="rate-btns" id="rate-btns">
+          <button class="rate-btn" data-rate="1">
+            <span class="imo-row"><svg class="imo"><use href="#ic-imo"></use></svg></span>
+            <span class="rate-label">少し</span>
+          </button>
+          <button class="rate-btn" data-rate="2">
+            <span class="imo-row"><svg class="imo"><use href="#ic-imo"></use></svg><svg class="imo"><use href="#ic-imo"></use></svg></span>
+            <span class="rate-label">普通</span>
+          </button>
+          <button class="rate-btn" data-rate="3">
+            <span class="imo-row"><svg class="imo"><use href="#ic-imo"></use></svg><svg class="imo"><use href="#ic-imo"></use></svg><svg class="imo"><use href="#ic-imo"></use></svg></span>
+            <span class="rate-label">たくさん</span>
+          </button>
+        </div>
+        <p class="rate-thanks hidden" id="rate-thanks"></p>
+        <p class="rate-note">いただいた評価と相談内容は匿名で記録され、うにの占いをより良くするために使われます。</p>
+      </div>
+
       <div class="center-row btn-pair">
         <button class="btn" id="btn-share"><svg class="ic"><use href="#ic-share"></use></svg>この占いをシェア</button>
         <button class="btn" id="btn-restart"><svg class="ic"><use href="#ic-return"></use></svg>もう一度、視てもらう</button>
@@ -888,6 +976,13 @@ h1, h2, h3 { font-weight: 400; text-wrap: balance; }
   <div class="mark">シーズーうにの占いの館</div>
   <div class="note">タロットは未来を決めるものではなく、心を映す鏡です</div>
 </footer>
+
+<!-- Netlify Forms 用（デプロイ時にフォーム検出されるための静的定義） -->
+<form name="uni-hyoka" data-netlify="true" hidden aria-hidden="true">
+  <input name="rating"><input name="ratingLabel"><input name="theme"><input name="spread">
+  <input name="topic"><textarea name="concern"></textarea><input name="cards">
+  <input name="upright"><input name="total"><input name="ts"><input name="tz">
+</form>
 
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
@@ -1355,43 +1450,43 @@ const state = { theme: null, spread: null, needed: 0, picks: [], concern: "" };
 // キーワードでお悩みの種類を推定し、札の正逆バランス（追い風/整えの時）に合わせた
 // うにの答えを返す。up: 正位置が多い時 / rev: 逆位置が多い時
 const CONCERN_TOPICS = [
-  { keys: ["復縁", "元カレ", "元カノ", "より戻", "元夫", "元妻"],
+  { name: "復縁", keys: ["復縁", "元カレ", "元カノ", "より戻", "元夫", "元妻"],
     up: "復縁の望みね。札は「過去がただ終わったのではなく、学びとして実り始めている」と言ってるワン。連絡を取るなら、昔の関係の再現じゃなく、新しい関係を始めるつもりで。そこを間違えなければ、流れは味方してくれるよ。",
     rev: "復縁の望みね。……正直に言うワン。いまの札は「過去を見つめ直す時間がまだ必要」と出てる。急いで動くより、なぜ離れたのかを自分の言葉で説明できるようになってから。それができた時、戻るか手放すか、本当の答えが見えるよ。" },
-  { keys: ["片思い", "好きな人", "告白", "振り向"],
+  { name: "片思い", keys: ["片思い", "好きな人", "告白", "振り向"],
     up: "その恋、札の並びは追い風だワン。想いは隠すより、少しずつ見せていく方が動く時。完璧な告白を狙うより、小さな接点を重ねてごらん。相手の心の扉は、たぶんあなたが思うより開いてる。",
     rev: "その恋ね。いまの札は「焦りが空回りを生む」と出てるワン。想いをぶつける前に、まず相手をよく知る時間を。あなた自身の魅力を整える期間だと思えば、この足踏みは無駄じゃないよ。" },
-  { keys: ["結婚", "婚活", "プロポーズ", "入籍"],
+  { name: "結婚", keys: ["結婚", "婚活", "プロポーズ", "入籍"],
     up: "結婚のことだね。札は「土台が育っている」と示してるワン。条件を数えるより、一緒にいて心が安らぐかを軸に決めて。その基準で選んだ道なら、この先も揺れにくいよ。",
     rev: "結婚のことだね。札は「決断の前に、見えていない不安を言葉にして」と言ってるワン。相手への迷いか、自分の準備か、世間の目か——不安の正体を分けて考えると、進むべきか待つべきかが自然と見えるよ。" },
-  { keys: ["別れ", "離婚", "距離を置", "冷めた", "終わらせ"],
+  { name: "別れ・離婚", keys: ["別れ", "離婚", "距離を置", "冷めた", "終わらせ"],
     up: "別れを考えてるんだね。札は「区切りは終わりではなく再生」と出てるワン。決めたなら、罪悪感より感謝で締めくくって。ちゃんと終わらせた関係だけが、次の幸せの土台になるよ。",
     rev: "別れを考えてるんだね。でも札は「感情の波の上で決めないで」と言ってるワン。疲れている時の結論は、たいてい極端になる。少し休んで、心が凪いだ日にもう一度同じ問いを自分にしてみて。答えが変わらなければ、それが本物だよ。" },
-  { keys: ["転職", "辞めたい", "退職", "辞めるべき"],
+  { name: "転職", keys: ["転職", "辞めたい", "退職", "辞めるべき"],
     up: "転職の迷いだね。札の流れは「動いてよし」と出てるワン。ただし逃げ出す転職じゃなく、向かっていく転職に。次の場所で何を得たいかを3つ書き出せたら、もう準備はできてる。",
     rev: "転職の迷いだね。いまの札は「動く前に、いまの場所でやり残しがないか確かめて」と出てるワン。不満の正体が環境なのか、自分の関わり方なのか——そこを見極めてからでも遅くない。準備した人の転機は強いよ。" },
-  { keys: ["上司", "同僚", "部下", "職場の人", "パワハラ", "職場で"],
+  { name: "職場の人間関係", keys: ["上司", "同僚", "部下", "職場の人", "パワハラ", "職場で"],
     up: "職場の人間関係ね。札は「あなたの誠実さが少しずつ伝わり始めている」と出てるワン。無理に好かれようとしなくていい。淡々と、フェアに。距離を保ったままでも信頼は築けるよ。",
     rev: "職場の人間関係ね。札は「ひとりで抱えるのが一番危ない」と言ってるワン。我慢は解決じゃないよ。信頼できる人か、しかるべき窓口に、事実を記録して相談して。あなたを守ることが最優先だワン。" },
-  { keys: ["起業", "独立", "フリーランス", "挑戦したい", "新しいこと"],
+  { name: "新しい挑戦", keys: ["起業", "独立", "フリーランス", "挑戦したい", "新しいこと"],
     up: "新しい挑戦だね。札は「始めるのに良い時」と出てるワン。大きく賭けるより、小さく試して早く学ぶこと。最初の一歩は完璧じゃなくていい、踏み出した人にしか次の景色は見えないから。",
     rev: "新しい挑戦だね。札は「情熱は本物、でも土台がまだ」と出てるワン。やめろとは言ってない。走り出す前に、お金の計画と撤退ラインだけ決めておいて。備えた挑戦は、怖くないよ。" },
-  { keys: ["お金", "貯金", "借金", "投資", "家計", "金欠", "節約"],
+  { name: "お金", keys: ["お金", "貯金", "借金", "投資", "家計", "金欠", "節約"],
     up: "お金の相談だね。札は「流れが整い始めている」と出てるワン。今は増やすより仕組みを作る時。先取り貯金でも家計の見える化でも、自動で回るルールを一つ作れば、あとはそれが働いてくれる。",
     rev: "お金の相談だね。札は「感情とお金が絡まってる」と出てるワン。不安な時ほど財布は乱れるもの。まず1ヶ月、記録だけつけてみて。責めなくていい、眺めるだけで使い方は変わり始めるよ。" },
-  { keys: ["友達", "友人", "親友", "グループ", "仲間はずれ"],
+  { name: "友人関係", keys: ["友達", "友人", "親友", "グループ", "仲間はずれ"],
     up: "友だちのことだね。札は「その縁は手入れすれば育つ」と出てるワン。すれ違いは、どちらかが悪いんじゃなくてリズムのずれ。あなたから小さな一言を送ってみて。それで戻る縁は、本物だよ。",
     rev: "友だちのことだね。札は「合わなくなった縁を無理に握りしめないで」と言ってるワン。人は変わるし、離れる時期もある。罪悪感で続ける関係より、いまのあなたを大切にしてくれる場所に力を注いで。" },
-  { keys: ["家族", "親", "母", "父", "兄", "姉", "妹", "弟", "子ども", "子供", "義理"],
+  { name: "家族", keys: ["家族", "親", "母", "父", "兄", "姉", "妹", "弟", "子ども", "子供", "義理"],
     up: "家族のことだね。札は「対話の窓が開いている」と出てるワン。正論より、まず「わかってほしい気持ち」を先に渡して。家族って、正しさじゃなくて安心で繋がり直せるものだから。",
     rev: "家族のことだね。札は「近すぎる距離が、いまは棘になってる」と出てるワン。少し離れるのは冷たさじゃないよ。体の距離でも心の距離でも、健全な距離はあなたと相手の両方を守る。まず自分の心の安全を確保して。" },
-  { keys: ["健康", "体調", "疲れ", "眠れ", "メンタル", "しんどい", "つらい", "病気"],
+  { name: "心と体", keys: ["健康", "体調", "疲れ", "眠れ", "メンタル", "しんどい", "つらい", "病気"],
     up: "心と体のことだね。札は「回復の流れに乗り始めている」と出てるワン。頑張って治すんじゃなくて、休むことを予定に入れて。睡眠と食事と散歩——地味な三つが、いちばん強い薬だよ。",
     rev: "心と体のことだね。……無理してたの、札にちゃんと出てるワン。いまは踏ん張る時じゃなくて、降ろす時。つらさが続くなら、専門の人に頼るのは弱さじゃなくて賢さだからね。うにはあなたの味方だよ。" },
-  { keys: ["進路", "受験", "試験", "勉強", "資格", "合格"],
+  { name: "進路・学び", keys: ["進路", "受験", "試験", "勉強", "資格", "合格"],
     up: "学びの挑戦だね。札は「積み上げが実る流れ」と出てるワン。新しい参考書より、できなかった問題の復習を。合格する人は特別なことをした人じゃなく、基本を最後まで手放さなかった人だよ。",
     rev: "学びの挑戦だね。札は「量より整えなおし」と出てるワン。焦って詰め込むほど抜けていく時期。計画を一度ゼロから引き直して、睡眠を削らないこと。整った頭が、いちばん覚えるからね。" },
-  { keys: ["引っ越し", "移住", "住まい", "実家を出"],
+  { name: "住まい", keys: ["引っ越し", "移住", "住まい", "実家を出"],
     up: "住まいの変化だね。札は「環境を変えることが運を動かす」と出てるワン。新しい場所はあなたの新しい習慣を作る。直感で「ここだ」と思えた場所なら、その感覚を信じていいよ。",
     rev: "住まいの変化だね。札は「タイミングをもう少し見て」と出てるワン。焦って決めた場所は、あとで小さな後悔を呼びがち。条件の優先順位を3つに絞ってから、また探してごらん。" }
 ];
@@ -1401,15 +1496,22 @@ function esc(s) {
 }
 function shorten(s, n) { return s.length > n ? s.slice(0, n) + "……" : s; }
 
+// 相談文からお悩みの種類を推定
+function detectTopic() {
+  if (!state.concern) return null;
+  for (const t of CONCERN_TOPICS) {
+    if (t.keys.some(k => state.concern.includes(k))) return t;
+  }
+  return null;
+}
+
 // 相談への、うにの答えを組み立てる
 function concernAnswer() {
   if (!state.concern) return "";
   const upCount = state.picks.filter(p => !p.reversed).length;
   const positive = upCount * 2 >= state.picks.length;
-  let topicMsg = null;
-  for (const t of CONCERN_TOPICS) {
-    if (t.keys.some(k => state.concern.includes(k))) { topicMsg = positive ? t.up : t.rev; break; }
-  }
+  const topic = detectTopic();
+  const topicMsg = topic ? (positive ? topic.up : topic.rev) : null;
   const last = state.picks[state.picks.length - 1];
   const lastPos = SPREADS[state.spread].positions[state.picks.length - 1];
   const d = (last.reversed ? last.card.reversed : last.card.upright)[state.theme];
@@ -1538,6 +1640,7 @@ function pick(el, idx) {
 // ===== ④ 結果 =====
 function showResult() {
   const spread = SPREADS[state.spread], theme = THEMES[state.theme], m = THEME_META[state.theme];
+  resetRating();
   document.getElementById("result-title").innerHTML =
     `${svg(m.icon, "theme-mark")}<h2>${theme.name} ・ ${spread.name}</h2>`;
 
@@ -1623,6 +1726,62 @@ function restart() { state.theme=state.spread=null; state.picks=[]; state.needed
 document.getElementById("btn-reveal").addEventListener("click", gazeThenReveal);
 document.getElementById("btn-restart").addEventListener("click", restart);
 document.getElementById("btn-share").addEventListener("click", shareReading);
+
+// ===== さつまいも評価（3段階）と匿名データ送信 =====
+const RATE_THANKS = {
+  1: [
+    "ありがと。ひとくちサイズでも、うにには ごちそうだワン。",
+    "わ、さつまいも。……ちゃんと味わって食べるね。次はもっといい鑑定にするワン。"
+  ],
+  2: [
+    "えへへ、ありがとう。もぐもぐ……うん、元気出た。また占いに来てね。",
+    "ふつうサイズのしあわせ、いただきます。今日も来てくれてありがとうワン。"
+  ],
+  3: [
+    "こ、こんなにたくさん……！　うに、幸せすぎて尻尾が止まらないワン。本当にありがとう。",
+    "山盛りのさつまいも……ここは天国かな？　あなたに、いいことがありますように。"
+  ]
+};
+
+function submitRating(level) {
+  const topic = detectTopic();
+  const data = {
+    "form-name": "uni-hyoka",
+    rating: String(level),
+    ratingLabel: ["", "少し", "普通", "たくさん"][level],
+    theme: THEMES[state.theme] ? THEMES[state.theme].name : "",
+    spread: SPREADS[state.spread] ? SPREADS[state.spread].name : "",
+    topic: topic ? topic.name : (state.concern ? "未分類" : "相談なし"),
+    concern: state.concern.slice(0, 200),
+    cards: state.picks.map(p => p.card.name + (p.reversed ? "(逆)" : "(正)")).join("、"),
+    upright: String(state.picks.filter(p => !p.reversed).length),
+    total: String(state.picks.length),
+    ts: new Date().toISOString(),
+    tz: (Intl.DateTimeFormat().resolvedOptions().timeZone || "")
+  };
+  // Netlify Forms へ送信（Netlify以外の環境では静かに失敗してOK）
+  fetch("/", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams(data).toString()
+  }).catch(() => {});
+
+  const msgs = RATE_THANKS[level];
+  const thanks = document.getElementById("rate-thanks");
+  thanks.textContent = "「" + msgs[Math.floor(Math.random() * msgs.length)] + "」";
+  thanks.classList.remove("hidden");
+  document.getElementById("rate-btns").classList.add("hidden");
+}
+
+function resetRating() {
+  document.getElementById("rate-btns").classList.remove("hidden");
+  const thanks = document.getElementById("rate-thanks");
+  thanks.classList.add("hidden");
+  thanks.textContent = "";
+}
+
+document.querySelectorAll(".rate-btn").forEach(b =>
+  b.addEventListener("click", () => submitRating(Number(b.dataset.rate))));
 
 // ===== 結果をシェア =====
 let toastTimer;
