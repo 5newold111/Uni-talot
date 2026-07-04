@@ -1514,6 +1514,24 @@ const SPREADS = {
     desc: "3枚のカードで、現状・課題・アドバイスを占います。",
     count: 3,
     positions: ["現状", "課題", "アドバイス"]
+  },
+  choice: {
+    name: "二者択一",
+    desc: "AとBで迷うときに。心の中でふたつの選択肢を決めてから引いてください。",
+    count: 4,
+    positions: ["いまのあなた", "Aを選んだ流れ", "Bを選んだ流れ", "決断の鍵"]
+  },
+  cross: {
+    name: "クロス",
+    desc: "5枚を十字に見立てて、現状・障害・意識・心の奥・ゆくえを立体的に視ます。",
+    count: 5,
+    positions: ["現状", "立ちはだかるもの", "意識していること", "心の奥にあるもの", "ゆくえ"]
+  },
+  horseshoe: {
+    name: "ホースシュー",
+    desc: "7枚で流れ全体をじっくり視る本格スプレッド。大切な局面に。",
+    count: 7,
+    positions: ["過去", "現在", "近い未来", "あなたの心構え", "まわりの影響", "乗り越えるヒント", "最終的なゆくえ"]
   }
 };
 
@@ -1532,7 +1550,10 @@ const THEME_META = {
   work:    { icon: "ic-work",    en: "Work",     accent: "var(--acc-work)" },
   money:   { icon: "ic-money",   en: "Wealth",   accent: "var(--acc-money)" }
 };
-const SPREAD_EN = { one: "One Oracle", three: "Past · Present · Future", situation: "Situation" };
+const SPREAD_EN = {
+  one: "One Oracle", three: "Past · Present · Future", situation: "Situation",
+  choice: "Two Paths", cross: "Cross", horseshoe: "Horseshoe"
+};
 
 // ローマ数字（0〜XXI）
 const ROMAN = ["0","I","II","III","IV","V","VI","VII","VIII","IX","X",
@@ -1919,6 +1940,19 @@ function arc() {
     return `<p>過去の「${n[0]}」が土台となり、現在の「${n[1]}」という局面を生んだワン。この流れは、未来の「${n[2]}」へ向かおうとしている。過去は変えられないけど、現在の札が示す課題に今どう関わるかで、未来の現れ方は変わるよ。</p>`;
   if (state.spread === "situation")
     return `<p>今の現状「${n[0]}」に対して、越えるべき課題が「${n[1]}」として浮かんでいるワン。その鍵を握るのが「${n[2]}」——この三枚目こそ、状況を動かす具体的な処方箋だよ。</p>`;
+  if (state.spread === "choice") {
+    const aUp = !state.picks[1].reversed, bUp = !state.picks[2].reversed;
+    let lean;
+    if (aUp && !bUp) lean = "札の勢いは、いまは A の道に傾いているワン。";
+    else if (!aUp && bUp) lean = "札の勢いは、いまは B の道に傾いているワン。";
+    else if (aUp && bUp) lean = "実はどちらの道にも良い流れがある。だからこれは「間違い探し」じゃなくて「好みの選択」なんだワン。";
+    else lean = "どちらの道もいまは向かい風気味。急いで選ばず、四枚目の鍵を先に整えるのが正解かもしれない。";
+    return `<p>いまのあなた「${n[0]}」を起点に、Aを選べば「${n[1]}、Bを選べば「${n[2]}」の流れが視えているワン。${lean}そして忘れないで——どちらを選んでも、「${n[3]}」が示す姿勢さえ持っていれば、その選択をあなたは正解にできるんだよ。</p>`;
+  }
+  if (state.spread === "cross")
+    return `<p>現状「${n[0]}」の行く手に、「${n[1]}」が立ちはだかっているワン。あなたが頭で意識しているのは「${n[2]}」だけど、心の奥では「${n[3]}」が動いてる——この表と裏のずれに気づくことが、この占いの肝だよ。ふたつが同じ方向を向いたとき、ゆくえの「${n[4]}」は一番いい形で現れるワン。</p>`;
+  if (state.spread === "horseshoe")
+    return `<p>流れを通して視るとね——過去の「${n[0]}」から現在の「${n[1]}へ、そして近い未来は「${n[2]}》卑かっているワン。その中であなたに求められる心構えが「${n[3]}」、まわりからは「${n[4]}」の影響が届いてる。乗り越えるヒントは「${n[5]}」。この六枚目を実践できたとき、最終的なゆくえ「${n[6]}」は、あなたの味方になってくれるよ。</p>`;
   return "";
 }
 
@@ -2080,11 +2114,24 @@ function shareReading() {
 
 // ===== 結果を画像カードにして保存・シェア =====
 async function saveResultImage() {
-  const W = 1080, H = 1350;
+  const W = 1080;
+  const isPair = state.mode === "pair";
+  // 先に札の段組みを計算し、必要な高さを決める
+  const n = state.picks.length;
+  const rows = n <= 3 ? [n] : n === 4 ? [2, 2] : n === 5 ? [3, 2] : n === 6 ? [3, 3] : [4, 3];
+  const gap = 20;
+  const rowMeta = rows.map(len => {
+    const pw = Math.min(n === 1 ? 420 : 300, Math.floor((W - 96 - gap * (len - 1)) / len));
+    const f = pw / 300;
+    const ph = Math.round(430 * Math.max(0.72, f));
+    return { len, pw, f, ph };
+  });
+  const platesH = rowMeta.reduce((a, r) => a + r.ph, 0) + gap * (rowMeta.length - 1);
+  const H = 486 + platesH + (isPair ? 150 : 40) + 170;
+
   const c = document.createElement("canvas");
   c.width = W; c.height = H;
   const x = c.getContext("2d");
-  const isPair = state.mode === "pair";
 
   // 背景（夜のインク＋星）
   const bg = x.createLinearGradient(0, 0, 0, H);
@@ -2130,37 +2177,42 @@ async function saveResultImage() {
     : `${THEMES[state.theme].name} ・ ${SPREADS[state.spread].name}`;
   x.fillText(heading, cx, 432);
 
-  // 札のプレート
-  const n = state.picks.length;
-  const pw = n === 1 ? 420 : 300, ph = 430, gap = 24;
-  const totalW = pw * n + gap * (n - 1);
-  let px0 = (W - totalW) / 2, py = 486;
-  state.picks.forEach((p, i) => {
-    const px = px0 + i * (pw + gap);
-    x.fillStyle = "rgba(26,23,50,0.75)";
-    x.fillRect(px, py, pw, ph);
-    x.strokeStyle = "#8b6f38"; x.lineWidth = 1.5;
-    x.strokeRect(px, py, pw, ph);
-    x.strokeStyle = "rgba(197,160,92,0.35)";
-    x.strokeRect(px + 8, py + 8, pw - 16, ph - 16);
-    const mid = px + pw / 2;
-    const pos = isPair ? [state.names.a, state.names.b, "ふたりの関係"][i] : SPREADS[state.spread].positions[i];
-    x.fillStyle = "#c3a25a"; x.font = `22px ${serif}`;
-    x.fillText(String(pos).slice(0, 10), mid, py + 52);
-    x.fillStyle = p.reversed ? "#cf9a94" : "#e4cd92"; x.font = `84px Georgia, serif`;
-    x.fillText(ROMAN[p.card.id], mid, py + 160);
-    x.fillStyle = "#e9dfc7"; x.font = `40px ${serif}`;
-    x.fillText(p.card.name, mid, py + 228);
-    x.fillStyle = "#a89c7d"; x.font = `19px Georgia, serif`;
-    x.fillText(p.card.nameEn.toUpperCase(), mid, py + 262);
-    x.fillStyle = p.reversed ? "#cf9a94" : "#8be8a0"; x.font = `24px ${serif}`;
-    x.fillText(p.reversed ? "逆位置" : "正位置", mid, py + 316);
-    x.fillStyle = "#a89c7d"; x.font = `20px ${serif}`;
-    x.fillText(p.card.keywords.join(" ・ "), mid, py + 368);
-  });
+  // 札のプレート（枚数に応じて段組みし、フォントも縮尺）
+  let py = 486;
+  let idx = 0;
+  for (const { len, pw, f, ph } of rowMeta) {
+    const px0 = (W - (pw * len + gap * (len - 1))) / 2;
+    for (let j = 0; j < len; j++, idx++) {
+      const p = state.picks[idx];
+      const px = px0 + j * (pw + gap);
+      x.fillStyle = "rgba(26,23,50,0.75)";
+      x.fillRect(px, py, pw, ph);
+      x.strokeStyle = "#8b6f38"; x.lineWidth = 1.5;
+      x.strokeRect(px, py, pw, ph);
+      x.strokeStyle = "rgba(197,160,92,0.35)";
+      x.strokeRect(px + 6, py + 6, pw - 12, ph - 12);
+      const mid = px + pw / 2;
+      const pos = isPair ? [state.names.a, state.names.b, "ふたりの関係"][idx] : SPREADS[state.spread].positions[idx];
+      x.fillStyle = "#c3a25a"; x.font = `${Math.round(20 * f) + 2}px ${serif}`;
+      x.fillText(String(pos).slice(0, 11), mid, py + Math.round(48 * f) + 6);
+      x.fillStyle = p.reversed ? "#cf9a94" : "#e4cd92"; x.font = `${Math.round(80 * f)}px Georgia, serif`;
+      x.fillText(ROMAN[p.card.id], mid, py + Math.round(150 * f) + 8);
+      x.fillStyle = "#e9dfc7"; x.font = `${Math.round(38 * f)}px ${serif}`;
+      x.fillText(p.card.name, mid, py + Math.round(215 * f) + 8);
+      x.fillStyle = "#a89c7d"; x.font = `${Math.max(12, Math.round(18 * f))}px Georgia, serif`;
+      x.fillText(p.card.nameEn.toUpperCase(), mid, py + Math.round(248 * f) + 8);
+      x.fillStyle = p.reversed ? "#cf9a94" : "#8be8a0"; x.font = `${Math.round(23 * f)}px ${serif}`;
+      x.fillText(p.reversed ? "逆位置" : "正位置", mid, py + Math.round(300 * f) + 8);
+      if (f >= 0.85) {
+        x.fillStyle = "#a89c7d"; x.font = `${Math.round(19 * f)}px ${serif}`;
+        x.fillText(p.card.keywords.join(" ・ "), mid, py + Math.round(352 * f) + 8);
+      }
+    }
+    py += ph + gap;
+  }
 
   // ふたり占いは相性％も
-  let fy = py + ph + 76;
+  let fy = py + 56;
   if (isPair) {
     x.fillStyle = "#e4cd92"; x.font = `64px Georgia, serif`;
     x.fillText(`相性 ${pairScore()}%`, cx, fy);
