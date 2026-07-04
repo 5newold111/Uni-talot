@@ -612,8 +612,93 @@ h1, h2, h3 { font-weight: 400; text-wrap: balance; }
   transition: color 0.25s ease, border-color 0.25s ease;
 }
 .btn-link:hover, .btn-link:focus-visible { color: var(--bronze); border-color: var(--bronze); outline: none; }
+/* ====================== ふたり占い 名前入力 ====================== */
+.pair-box {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+  max-width: 560px;
+  margin: 0 auto 1.6rem;
+}
+.pair-field { display: flex; flex-direction: column; gap: 0.45rem; }
+.pair-field label {
+  font-family: var(--serif-jp);
+  font-size: 0.82rem;
+  letter-spacing: 0.1em;
+  color: var(--bronze);
+}
+.pair-field input {
+  width: 180px;
+  background: rgba(16, 21, 44, 0.65);
+  border: 1px solid var(--line);
+  color: var(--ivory);
+  font-family: var(--serif-jp);
+  font-size: 1.05rem;
+  padding: 0.7rem 0.9rem;
+  text-align: center;
+  transition: border-color 0.25s ease;
+}
+.pair-field input:focus { outline: none; border-color: var(--bronze); }
+.pair-x { color: var(--bronze); font-size: 1rem; padding-bottom: 0.8rem; letter-spacing: 0.1em; }
+
+/* 相性スコア表示 */
+.pair-score {
+  text-align: center;
+  margin: 0 auto 1.6rem;
+  max-width: 560px;
+  border: 1px solid var(--bronze-lo);
+  background: rgba(197, 160, 92, 0.06);
+  padding: 1.3rem 1rem 1.1rem;
+}
+.pair-score .ps-names {
+  font-family: var(--serif-jp);
+  color: var(--ivory);
+  font-size: 1.05rem;
+  letter-spacing: 0.08em;
+  margin-bottom: 0.4rem;
+}
+.pair-score .ps-num {
+  font-family: var(--serif-la);
+  font-size: 3.2rem;
+  line-height: 1.1;
+  color: var(--bronze-hi);
+}
+.pair-score .ps-num small { font-size: 1.3rem; color: var(--bronze); }
+.pair-score .ps-tier {
+  font-family: var(--serif-jp);
+  color: var(--bronze);
+  letter-spacing: 0.14em;
+  font-size: 0.92rem;
+  margin-top: 0.3rem;
+}
+
+/* さつまいもが浮かぶ演出 */
+.imo-float {
+  position: absolute;
+  width: 26px; height: 26px;
+  color: var(--bronze-hi);
+  pointer-events: none;
+  animation: imoUp 1.25s ease-out forwards;
+}
+@keyframes imoUp {
+  from { opacity: 0; transform: translateY(6px) scale(0.7) rotate(0deg); }
+  25%  { opacity: 1; }
+  to   { opacity: 0; transform: translateY(-72px) scale(1.15) rotate(24deg); }
+}
+.imo-count {
+  display: block;
+  margin-top: 0.5rem;
+  color: var(--ivory-dim);
+  font-size: 0.8rem;
+  letter-spacing: 0.06em;
+}
+
 /* ====================== さつまいも評価 ====================== */
 .rate-box {
+  position: relative;
+  overflow: hidden;
   max-width: 560px;
   margin: 0 auto 2rem;
   text-align: center;
@@ -860,6 +945,20 @@ h1, h2, h3 { font-weight: 400; text-wrap: balance; }
     <symbol id="ic-star" viewBox="0 0 24 24">
       <path d="M12 2 l2.3 6.8 7.2 0.2 -5.7 4.4 2 6.9 -5.8 -4 -5.8 4 2 -6.9 -5.7 -4.4 7.2 -0.2 z" fill="currentColor"/>
     </symbol>
+    <symbol id="ic-download" viewBox="0 0 24 24">
+      <g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 4 v10 M8 10.5 L12 14.5 L16 10.5"/>
+        <path d="M5 17 v2.4 h14 V17"/>
+      </g>
+    </symbol>
+    <symbol id="ic-pair" viewBox="0 0 48 48">
+      <g fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round">
+        <circle cx="17" cy="17" r="5.5"/>
+        <circle cx="31" cy="17" r="5.5"/>
+        <path d="M8 38 c0-6 4-10 9-10 c3 0 4.6 1.2 7 1.2 c2.4 0 4-1.2 7-1.2 c5 0 9 4 9 10"/>
+        <path d="M24 24.5 l1.6 3.4 3.4 1.6 -3.4 1.6 -1.6 3.4 -1.6 -3.4 -3.4 -1.6 3.4 -1.6 z" fill="currentColor" stroke="none"/>
+      </g>
+    </symbol>
     <symbol id="ic-return" viewBox="0 0 24 24">
       <path d="M6 12 a6 6 0 1 1 2 4.4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
       <path d="M6 7 v5 h5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
@@ -909,6 +1008,30 @@ h1, h2, h3 { font-weight: 400; text-wrap: balance; }
         <p class="concern-hint">書いてくれたら、うにが鑑定の最後にその相談へまっすぐ答えるワン。下のジャンルを選ぶと占いがはじまるよ。</p>
       </div>
       <div class="grid themes" id="theme-grid"></div>
+    </section>
+
+    <!-- ふたり占い：名前入力 -->
+    <section class="step hidden" id="step-pair">
+      <p class="uni-say">「ふたり占いだね。いいよ、うにに任せて。<br class="sp-br">ふたりの名前を教えてくれる？　ニックネームでもいいワン。」</p>
+      <div class="step-head">
+        <div class="kicker">Pair Reading</div>
+        <h2>ふたりの名前を教えて</h2>
+      </div>
+      <div class="pair-box">
+        <div class="pair-field">
+          <label for="pair-a">あなたの名前</label>
+          <input id="pair-a" maxlength="12" placeholder="例：うに">
+        </div>
+        <div class="pair-x">と</div>
+        <div class="pair-field">
+          <label for="pair-b">相手の名前</label>
+          <input id="pair-b" maxlength="12" placeholder="例：むぎ">
+        </div>
+      </div>
+      <div class="center-row">
+        <button class="btn center" id="btn-pair-start"><svg class="ic"><use href="#ic-star"></use></svg>札を引きにいく</button>
+        <button class="btn-link" data-back="theme">テーマ選びに戻る</button>
+      </div>
     </section>
 
     <!-- ステップ2：スプレッド -->
@@ -965,6 +1088,7 @@ h1, h2, h3 { font-weight: 400; text-wrap: balance; }
       </div>
 
       <div class="center-row btn-pair">
+        <button class="btn" id="btn-image"><svg class="ic"><use href="#ic-download"></use></svg>結果を画像で保存</button>
         <button class="btn" id="btn-share"><svg class="ic"><use href="#ic-share"></use></svg>この占いをシェア</button>
         <button class="btn" id="btn-restart"><svg class="ic"><use href="#ic-return"></use></svg>もう一度、視てもらう</button>
       </div>
@@ -1444,7 +1568,15 @@ function setGreeting() {
 }
 
 // ===== 状態 =====
-const state = { theme: null, spread: null, needed: 0, picks: [], concern: "" };
+const state = { theme: null, spread: null, needed: 0, picks: [], concern: "", mode: "solo", names: { a: "", b: "" } };
+
+// ふたり占い専用スプレッド（スプレッド選択画面には出さない）
+SPREADS.pair = {
+  name: "ふたり占い",
+  desc: "ふたりの相性を3枚で視ます。",
+  count: 3,
+  positions: ["あなた", "相手", "ふたりの関係"]
+};
 
 // ===== 相談テキストの読み取り =====
 // キーワードでお悩みの種類を推定し、札の正逆バランス（追い風/整えの時）に合わせた
@@ -1581,6 +1713,7 @@ function renderThemes() {
     el.style.setProperty("--accent", m.accent);
     el.innerHTML = `${svg(m.icon, "emblem")}<div class="name">${t.name}</div><div class="en">${m.en}</div>`;
     el.addEventListener("click", () => {
+      state.mode = "solo";
       state.theme = key;
       state.concern = document.getElementById("concern").value.trim();
       renderSpreads();
@@ -1588,6 +1721,28 @@ function renderThemes() {
     });
     grid.appendChild(el);
   }
+  // ふたり占い（相性）モード
+  const pair = document.createElement("button");
+  pair.className = "pick";
+  pair.style.setProperty("--accent", "var(--acc-love)");
+  pair.innerHTML = `${svg("ic-pair", "emblem")}<div class="name">ふたり占い</div><div class="en">Compatibility</div><div class="desc">ふたりの名前で相性を視ます</div>`;
+  pair.addEventListener("click", () => show("step-pair"));
+  grid.appendChild(pair);
+}
+
+// ふたり占い：名前を確定して札引きへ
+function startPair() {
+  const a = document.getElementById("pair-a").value.trim() || "あなた";
+  const b = document.getElementById("pair-b").value.trim() || "おあいて";
+  state.mode = "pair";
+  state.names = { a, b };
+  state.theme = "love";           // 鑑定文の下地として恋愛/総合を使う
+  state.concern = "";
+  state.spread = "pair";
+  state.needed = SPREADS.pair.count;
+  state.picks = [];
+  renderDeck();
+  show("step-draw");
 }
 
 // ===== ② スプレッド =====
@@ -1595,6 +1750,7 @@ function renderSpreads() {
   const grid = document.getElementById("spread-grid");
   grid.innerHTML = "";
   for (const [key, s] of Object.entries(SPREADS)) {
+    if (key === "pair") continue;   // ふたり占いはテーマ画面から入る
     const el = document.createElement("button");
     el.className = "pick";
     el.innerHTML = `<div class="name">${s.name}</div><div class="en">${SPREAD_EN[key]||""}</div><div class="desc">${s.desc}</div>`;
@@ -1639,21 +1795,34 @@ function pick(el, idx) {
 
 // ===== ④ 結果 =====
 function showResult() {
-  const spread = SPREADS[state.spread], theme = THEMES[state.theme], m = THEME_META[state.theme];
+  const spread = SPREADS[state.spread];
+  const isPair = state.mode === "pair";
   resetRating();
-  document.getElementById("result-title").innerHTML =
-    `${svg(m.icon, "theme-mark")}<h2>${theme.name} ・ ${spread.name}</h2>`;
+
+  if (isPair) {
+    document.getElementById("result-title").innerHTML =
+      `${svg("ic-pair", "theme-mark")}<h2>ふたり占い ・ ${esc(state.names.a)} と ${esc(state.names.b)}</h2>`;
+  } else {
+    const theme = THEMES[state.theme], m = THEME_META[state.theme];
+    document.getElementById("result-title").innerHTML =
+      `${svg(m.icon, "theme-mark")}<h2>${theme.name} ・ ${spread.name}</h2>`;
+  }
 
   const wrap = document.getElementById("plates");
   wrap.innerHTML = "";
   state.picks.forEach((p, i) => {
     const { card, reversed } = p;
-    const d = (reversed ? card.reversed : card.upright)[state.theme];
+    // ふたり占い：人物札は総合、関係札は恋愛の解釈を下地にする
+    const themeKey = isPair ? (i < 2 ? "general" : "love") : state.theme;
+    const d = (reversed ? card.reversed : card.upright)[themeKey];
+    const pos = isPair
+      ? [esc(state.names.a), esc(state.names.b), "ふたりの関係"][i]
+      : spread.positions[i];
     const el = document.createElement("article");
     el.className = "plate" + (reversed ? " rev" : "");
     el.style.animationDelay = (i * 0.22) + "s";
     el.innerHTML = `
-      <span class="pos">${spread.positions[i]}</span>
+      <span class="pos">${pos}</span>
       <div class="numeral">${ROMAN[card.id]}</div>
       <div class="name">${card.name}</div>
       <div class="en">${card.nameEn}</div>
@@ -1665,8 +1834,50 @@ function showResult() {
     wrap.appendChild(el);
   });
 
-  document.getElementById("reading-scroll").innerHTML = buildSummary();
+  document.getElementById("reading-scroll").innerHTML = isPair ? pairSummary() : buildSummary();
   show("step-result");
+}
+
+// ===== ふたり占いの相性と総評 =====
+function pairScore() {
+  const up = state.picks.filter(p => !p.reversed).length;
+  const relUp = state.picks[2] && !state.picks[2].reversed;
+  const idTint = (state.picks.reduce((a, p) => a + p.card.id, 0) % 7) - 3; // 札の組合せによる揺らぎ
+  return Math.max(30, Math.min(98, 38 + up * 16 + (relUp ? 6 : 0) + idTint));
+}
+function pairSummary() {
+  const a = esc(state.names.a), b = esc(state.names.b);
+  const score = pairScore();
+  const rel = state.picks[2];
+  const relD = (rel.reversed ? rel.card.reversed : rel.card.upright).love;
+  const uniSrc = document.getElementById("uni-portrait").src;
+
+  let tier, msg;
+  if (score >= 88) {
+    tier = "運命級のめぐり合わせ";
+    msg = `すごいワン……この配置、なかなか出ないよ。${a}と${b}は、お互いの足りないところを自然に補い合える組み合わせ。安心して、そのままのふたりでいて。ただ、近すぎる縁ほど「ありがとう」を忘れがちだから、言葉にすることだけ大切にね。`;
+  } else if (score >= 72) {
+    tier = "とても相性のいいふたり";
+    msg = `${a}と${b}は、一緒にいると物事が良い方へ転がりやすい組み合わせだワン。似ているところで安心して、違うところで学び合える。ケンカをしても戻ってこられる強さがあるから、素直さだけ忘れないで。`;
+  } else if (score >= 55) {
+    tier = "育てていける相性";
+    msg = `いまはまだ、お互いを分かりきれていない部分があるみたい。でもね、それは伸びしろだワン。${a}から小さな一歩——挨拶でも、ひと言のねぎらいでも——を重ねれば、この縁はちゃんと育つよ。焦らないでいい。`;
+  } else {
+    tier = "学び合いの縁";
+    msg = `正直に言うワン。いまのふたりは、リズムが少しずれている時期。でも相性が悪いんじゃなくて、「相手は自分と違う」ということを学ぶための縁なんだ。無理に合わせず、違いを面白がれたら——この関係は化けるよ。`;
+  }
+
+  let h = `<div class="rs-head"><img src="${uniSrc}" alt="うに"><span class="t">占い師うにの見立て</span></div>`;
+  h += `<p class="open">「……うん、ふたりの糸、視えてきたワン。」</p>`;
+  h += `<div class="pair-score"><div class="ps-names">${a} と ${b}</div>` +
+       `<div class="ps-num">${score}<small> %</small></div>` +
+       `<div class="ps-tier">— ${tier} —</div></div>`;
+  h += `<p>${msg}</p>`;
+  h += `<p>ふたりの関係を映す札は「${rel.card.name}」（${rel.reversed ? "逆位置" : "正位置"}）。${relD.reading}</p>`;
+  h += `<p>うにからのおまじない——${relD.advice}</p>`;
+  h += `<p class="close">相性はね、決まりものじゃなくて、ふたりで育てるものだワン。今日の札は、その育て方のヒント。${a}と${b}に、あたたかい風が吹きますように。</p>`;
+  h += `<p class="sign">― 占い師うに（ふたりのぶん、さつまいも2本もらえたら嬉しいな）</p>`;
+  return h;
 }
 
 function buildSummary() {
@@ -1720,28 +1931,77 @@ function gazeThenReveal() {
 
 // ===== ユーティリティ =====
 function shuffle(a) { for (let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];} return a; }
-function restart() { state.theme=state.spread=null; state.picks=[]; state.needed=0; setGreeting(); renderThemes(); show("step-theme"); }
+function restart() {
+  state.theme = state.spread = null;
+  state.picks = []; state.needed = 0;
+  state.mode = "solo"; state.names = { a: "", b: "" };
+  setGreeting(); renderThemes(); show("step-theme");
+}
 
 // ===== 初期化 =====
 document.getElementById("btn-reveal").addEventListener("click", gazeThenReveal);
 document.getElementById("btn-restart").addEventListener("click", restart);
 document.getElementById("btn-share").addEventListener("click", shareReading);
+document.getElementById("btn-image").addEventListener("click", saveResultImage);
+document.getElementById("btn-pair-start").addEventListener("click", startPair);
 
 // ===== さつまいも評価（3段階）と匿名データ送信 =====
 const RATE_THANKS = {
   1: [
     "ありがと。ひとくちサイズでも、うにには ごちそうだワン。",
-    "わ、さつまいも。……ちゃんと味わって食べるね。次はもっといい鑑定にするワン。"
+    "わ、さつまいも。……ちゃんと味わって食べるね。次はもっといい鑑定にするワン。",
+    "ひとくちの気持ち、たしかに受け取ったよ。また視せてね。",
+    "ん、ありがと。少しずつ食べるのが、実はいちばん幸せなんだワン。",
+    "小さなさつまいもと、小さな「ありがとう」。どっちも大事にするね。",
+    "えへ、遠慮しなくていいのに。……でも嬉しい。またおいで。",
+    "ひとくちサイズ、味わい深いワン。あなたの明日が少しでも軽くなりますように。"
   ],
   2: [
     "えへへ、ありがとう。もぐもぐ……うん、元気出た。また占いに来てね。",
-    "ふつうサイズのしあわせ、いただきます。今日も来てくれてありがとうワン。"
+    "ふつうサイズのしあわせ、いただきます。今日も来てくれてありがとうワン。",
+    "もぐ……ん、ちょうどいい甘さ。あなたの毎日も、これくらいの甘さがありますように。",
+    "ごちそうさま。占いのあとのさつまいもは、格別だワン。",
+    "ありがと。うに、これで午後もがんばれる。あなたもほどほどにね。",
+    "ふふ、ちゃんと届いたよ。カードもあなたも、今日はいい顔してるワン。",
+    "うんうん、いい一日の締めくくり。また心が揺れたら、いつでもおいで。"
   ],
   3: [
     "こ、こんなにたくさん……！　うに、幸せすぎて尻尾が止まらないワン。本当にありがとう。",
-    "山盛りのさつまいも……ここは天国かな？　あなたに、いいことがありますように。"
+    "山盛りのさつまいも……ここは天国かな？　あなたに、いいことがありますように。",
+    "たくさんのありがとうは、たくさんの幸せになって返っていくんだワン。きっとね。",
+    "ふわぁ……こんなに？　今夜はいい夢が見られそう。あなたもだよ。",
+    "うに、感動して目がうるうるしてる。……半分こしよ？　えへへ、冗談。全部食べる。",
+    "山盛りいただきました。この恩は、次の鑑定の冴えで返すワン。",
+    "こんなに喜んでもらえたなら、占い師冥利に尽きるワン。またふたりで話そうね。"
   ]
 };
+
+// さつまいも累計（この端末で、うににあげた本数）
+function imoTotal(add) {
+  let n = 0;
+  try {
+    n = Number(localStorage.getItem("uni_imo_total") || 0);
+    if (add) { n += add; localStorage.setItem("uni_imo_total", String(n)); }
+  } catch (e) { n += (add || 0); }
+  return n;
+}
+
+// さつまいもが浮かぶ演出
+function floatImos(count) {
+  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  const box = document.getElementById("rate-box");
+  const w = box.clientWidth;
+  for (let i = 0; i < count * 3; i++) {
+    const s = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    s.setAttribute("class", "imo-float");
+    s.innerHTML = '<use href="#ic-imo"></use>';
+    s.style.left = (w * 0.2 + Math.random() * w * 0.6) + "px";
+    s.style.bottom = "40px";
+    s.style.animationDelay = (Math.random() * 0.35) + "s";
+    box.appendChild(s);
+    setTimeout(() => s.remove(), 1800);
+  }
+}
 
 function submitRating(level) {
   const topic = detectTopic();
@@ -1749,9 +2009,9 @@ function submitRating(level) {
     "form-name": "uni-hyoka",
     rating: String(level),
     ratingLabel: ["", "少し", "普通", "たくさん"][level],
-    theme: THEMES[state.theme] ? THEMES[state.theme].name : "",
+    theme: state.mode === "pair" ? "ふたり占い" : (THEMES[state.theme] ? THEMES[state.theme].name : ""),
     spread: SPREADS[state.spread] ? SPREADS[state.spread].name : "",
-    topic: topic ? topic.name : (state.concern ? "未分類" : "相談なし"),
+    topic: state.mode === "pair" ? "相性占い" : (topic ? topic.name : (state.concern ? "未分類" : "相談なし")),
     concern: state.concern.slice(0, 200),
     cards: state.picks.map(p => p.card.name + (p.reversed ? "(逆)" : "(正)")).join("、"),
     upright: String(state.picks.filter(p => !p.reversed).length),
@@ -1767,10 +2027,13 @@ function submitRating(level) {
   }).catch(() => {});
 
   const msgs = RATE_THANKS[level];
+  const total = imoTotal(level);
   const thanks = document.getElementById("rate-thanks");
-  thanks.textContent = "「" + msgs[Math.floor(Math.random() * msgs.length)] + "」";
+  thanks.innerHTML = "「" + msgs[Math.floor(Math.random() * msgs.length)] + "」" +
+    `<span class="imo-count">これまでにうにがもらったさつまいも：${total}本</span>`;
   thanks.classList.remove("hidden");
   document.getElementById("rate-btns").classList.add("hidden");
+  floatImos(level);
 }
 
 function resetRating() {
@@ -1793,12 +2056,17 @@ function toast(msg) {
   toastTimer = setTimeout(() => t.classList.remove("show"), 2600);
 }
 function shareReading() {
-  const theme = state.theme ? THEMES[state.theme].name : "";
-  const spread = state.spread ? SPREADS[state.spread].name : "";
   const first = state.picks[0] ? state.picks[0].card.name : "";
   const url = location.origin + location.pathname;
-  const text = `シーズーうにの占いの館で【${theme}・${spread}】を占ったワン。` +
-    (first ? `最初の一枚は「${first}」。` : "") + `あなたも占ってみる？`;
+  let text;
+  if (state.mode === "pair") {
+    text = `シーズーうにの占いの館で、ふたり占いをしたワン。相性は ${pairScore()}%。あなたも誰かと占ってみる？`;
+  } else {
+    const theme = state.theme ? THEMES[state.theme].name : "";
+    const spread = state.spread ? SPREADS[state.spread].name : "";
+    text = `シーズーうにの占いの館で【${theme}・${spread}】を占ったワン。` +
+      (first ? `最初の一枚は「${first}」。` : "") + `あなたも占ってみる？`;
+  }
   if (navigator.share) {
     navigator.share({ title: "シーズーうにの占いの館", text, url }).catch(() => {});
   } else if (navigator.clipboard) {
@@ -1808,6 +2076,117 @@ function shareReading() {
   } else {
     toast(url);
   }
+}
+
+// ===== 結果を画像カードにして保存・シェア =====
+async function saveResultImage() {
+  const W = 1080, H = 1350;
+  const c = document.createElement("canvas");
+  c.width = W; c.height = H;
+  const x = c.getContext("2d");
+  const isPair = state.mode === "pair";
+
+  // 背景（夜のインク＋星）
+  const bg = x.createLinearGradient(0, 0, 0, H);
+  bg.addColorStop(0, "#151b38"); bg.addColorStop(0.55, "#0a0e1f"); bg.addColorStop(1, "#080b19");
+  x.fillStyle = bg; x.fillRect(0, 0, W, H);
+  for (let i = 0; i < 130; i++) {
+    x.globalAlpha = Math.random() * 0.55 + 0.1;
+    x.fillStyle = "#e9dfc7";
+    x.beginPath();
+    x.arc(Math.random() * W, Math.random() * H, Math.random() * 1.6 + 0.4, 0, 6.2832);
+    x.fill();
+  }
+  x.globalAlpha = 1;
+  // 額縁
+  x.strokeStyle = "#c3a25a"; x.lineWidth = 2;
+  x.strokeRect(28, 28, W - 56, H - 56);
+  x.strokeStyle = "rgba(197,160,92,0.4)"; x.lineWidth = 1;
+  x.strokeRect(40, 40, W - 80, H - 80);
+
+  const serif = '"Hiragino Mincho ProN","Yu Mincho","Noto Serif JP",serif';
+  x.textAlign = "center";
+
+  // うにの肖像（丸型）
+  const img = document.getElementById("uni-portrait");
+  const R = 92, cx = W / 2, cy = 178;
+  x.save();
+  x.beginPath(); x.arc(cx, cy, R, 0, 6.2832); x.clip();
+  x.drawImage(img, cx - R, cy - R * 1.15, R * 2, R * 2.3);
+  x.restore();
+  x.strokeStyle = "#c3a25a"; x.lineWidth = 3;
+  x.beginPath(); x.arc(cx, cy, R + 4, 0, 6.2832); x.stroke();
+
+  // タイトル
+  x.fillStyle = "#c3a25a"; x.font = `24px ${serif}`;
+  x.fillText("― 占 い の 館 ―", cx, 316);
+  x.fillStyle = "#e9dfc7"; x.font = `46px ${serif}`;
+  x.fillText("シーズーうにのタロット占い", cx, 372);
+
+  // 見出し（テーマ or ふたり）
+  x.fillStyle = "#c3a25a"; x.font = `30px ${serif}`;
+  const heading = isPair
+    ? `${state.names.a} と ${state.names.b} の相性`
+    : `${THEMES[state.theme].name} ・ ${SPREADS[state.spread].name}`;
+  x.fillText(heading, cx, 432);
+
+  // 札のプレート
+  const n = state.picks.length;
+  const pw = n === 1 ? 420 : 300, ph = 430, gap = 24;
+  const totalW = pw * n + gap * (n - 1);
+  let px0 = (W - totalW) / 2, py = 486;
+  state.picks.forEach((p, i) => {
+    const px = px0 + i * (pw + gap);
+    x.fillStyle = "rgba(26,23,50,0.75)";
+    x.fillRect(px, py, pw, ph);
+    x.strokeStyle = "#8b6f38"; x.lineWidth = 1.5;
+    x.strokeRect(px, py, pw, ph);
+    x.strokeStyle = "rgba(197,160,92,0.35)";
+    x.strokeRect(px + 8, py + 8, pw - 16, ph - 16);
+    const mid = px + pw / 2;
+    const pos = isPair ? [state.names.a, state.names.b, "ふたりの関係"][i] : SPREADS[state.spread].positions[i];
+    x.fillStyle = "#c3a25a"; x.font = `22px ${serif}`;
+    x.fillText(String(pos).slice(0, 10), mid, py + 52);
+    x.fillStyle = p.reversed ? "#cf9a94" : "#e4cd92"; x.font = `84px Georgia, serif`;
+    x.fillText(ROMAN[p.card.id], mid, py + 160);
+    x.fillStyle = "#e9dfc7"; x.font = `40px ${serif}`;
+    x.fillText(p.card.name, mid, py + 228);
+    x.fillStyle = "#a89c7d"; x.font = `19px Georgia, serif`;
+    x.fillText(p.card.nameEn.toUpperCase(), mid, py + 262);
+    x.fillStyle = p.reversed ? "#cf9a94" : "#8be8a0"; x.font = `24px ${serif}`;
+    x.fillText(p.reversed ? "逆位置" : "正位置", mid, py + 316);
+    x.fillStyle = "#a89c7d"; x.font = `20px ${serif}`;
+    x.fillText(p.card.keywords.join(" ・ "), mid, py + 368);
+  });
+
+  // ふたり占いは相性％も
+  let fy = py + ph + 76;
+  if (isPair) {
+    x.fillStyle = "#e4cd92"; x.font = `64px Georgia, serif`;
+    x.fillText(`相性 ${pairScore()}%`, cx, fy);
+    fy += 64;
+  }
+
+  // フッター（日付とURL）
+  const d = new Date();
+  x.fillStyle = "#c3a25a"; x.font = `24px ${serif}`;
+  x.fillText(`${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, "0")}.${String(d.getDate()).padStart(2, "0")}`, cx, H - 120);
+  x.fillStyle = "#a89c7d"; x.font = `20px Georgia, serif`;
+  x.fillText("mellifluous-piroshki-c0c60f.netlify.app", cx, H - 84);
+
+  // 保存 or シェア
+  const blob = await new Promise(res => c.toBlob(res, "image/png"));
+  const file = new File([blob], "uni-tarot.png", { type: "image/png" });
+  if (navigator.canShare && navigator.canShare({ files: [file] })) {
+    try { await navigator.share({ files: [file], title: "シーズーうにの占いの館" }); return; }
+    catch (e) { /* キャンセル時は下のDLへ */ }
+  }
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "uni-tarot.png";
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+  toast("画像を保存したワン");
 }
 
 // ===== PWA：Service Worker 登録 =====
