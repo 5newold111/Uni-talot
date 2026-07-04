@@ -1,0 +1,38 @@
+name: Apply patch (remote push helper)
+
+# 開発環境からの git push が使えない場合に、差分(base64)を受け取って main へ適用する。
+# 注意: GITHUB_TOKEN によるコミットは他のワークフローを起動しないため、
+# 反映後は "Deploy site to Netlify" を手動起動すること。
+
+on:
+  workflow_dispatch:
+    inputs:
+      patch_b64:
+        description: "base64-encoded git diff"
+        required: true
+        type: string
+      message:
+        description: "commit message"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply and push
+        env:
+          PB: ${{ inputs.patch_b64 }}
+          MSG: ${{ inputs.message }}
+        run: |
+          printf '%s' "$PB" | base64 -d > /tmp/p.diff
+          git apply --whitespace=nowarn /tmp/p.diff
+          git config user.name "5newold111"
+          git config user.email "5newold111@gmail.com"
+          git add -A
+          git commit -m "$MSG"
+          git push
