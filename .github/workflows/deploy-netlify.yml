@@ -1,0 +1,48 @@
+name: Deploy site to Netlify
+
+# main へのプッシュごとに、サイト一式を Netlify（既存サイト）へ自動デプロイする。
+# Netlify の画面操作や Git 連携は不要。必要なのはシークレット NETLIFY_AUTH_TOKEN のみ（設定済み）。
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: netlify-deploy
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Package site
+        run: |
+          mkdir -p _site
+          cp index.html manifest.webmanifest sw.js \
+             icon-192.png icon-512.png apple-touch-icon.png favicon-32.png og-image.png _site/
+          cd _site && zip -qr ../site.zip .
+
+      - name: Deploy to Netlify
+        env:
+          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+          SITE_NAME: mellifluous-piroshki-c0c60f
+        run: |
+          SITE_ID=$(curl -sf -H "Authorization: Bearer $NETLIFY_AUTH_TOKEN" \
+            "https://api.netlify.com/api/v1/sites?per_page=100" \
+            | jq -r --arg n "$SITE_NAME" '.[] | select(.name==$n) | .id')
+          if [ -z "$SITE_ID" ]; then
+            echo "::error::Netlify サイト $SITE_NAME が見つかりません"; exit 1
+          fi
+          echo "Deploying to site: $SITE_ID"
+          RESULT=$(curl -sf -X POST \
+            -H "Authorization: Bearer $NETLIFY_AUTH_TOKEN" \
+            -H "Content-Type: application/zip" \
+            --data-binary @site.zip \
+            "https://api.netlify.com/api/v1/sites/$SITE_ID/deploys")
+          echo "$RESULT" | jq -r '"deploy id: \(.id)  state: \(.state)"'
