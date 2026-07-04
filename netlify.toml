@@ -1,0 +1,10 @@
+# Netlify 設定：ビルド不要の静的サイト。リポジトリのルートをそのまま公開する。
+[build]
+  publish = "."
+
+# セキュリティ系の基本ヘッダー
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
