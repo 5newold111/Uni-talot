@@ -1,6 +1,8 @@
 # Netlify 設定：ビルド不要の静的サイト。リポジトリのルートをそのまま公開する。
+# command を明示することで、管理画面側に誤ったビルドコマンドが設定されていても上書きする。
 [build]
   publish = "."
+  command = "echo 'no build needed'"
 
 # セキュリティ系の基本ヘッダー
 [[headers]]
