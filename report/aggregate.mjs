@@ -18,10 +18,20 @@ async function json(url) {
   if (!r.ok) throw new Error(`${r.status} ${url}`);
   return r.json();
 }
-const forms = await json(`${API}/forms`);
+const SITE_HINT = process.env.SITE_NAME || "mellifluous-piroshki-c0c60f";
+const sites = await json(`${API}/sites`);
+const site = sites.find(s =>
+  (s.name || "") === SITE_HINT ||
+  (s.url || "").includes(SITE_HINT) ||
+  (s.ssl_url || "").includes(SITE_HINT));
+if (!site) {
+  writeFileSync("report.md", buildEmpty(`Netlify サイト（${SITE_HINT}）が見つかりません。トークンのアカウントとサイトの所有者が一致しているか確認してください。`));
+  process.exit(0);
+}
+const forms = await json(`${API}/sites/${site.id || site.site_id}/forms`);
 const form = forms.find(f => f.name === "uni-hyoka");
 if (!form) {
-  writeFileSync("report.md", buildEmpty("フォーム uni-hyoka がまだ登録されていません。サイトのデプロイとフォーム検出の有効化を確認してください。"));
+  writeFileSync("report.md", buildEmpty("フォーム uni-hyoka がまだ登録されていません。Netlify の Forms でフォーム検出が有効か、最新zipがデプロイ済みかを確認してください。"));
   process.exit(0);
 }
 let subs = [];
