@@ -612,6 +612,37 @@ h1, h2, h3 { font-weight: 400; text-wrap: balance; }
   transition: color 0.25s ease, border-color 0.25s ease;
 }
 .btn-link:hover, .btn-link:focus-visible { color: var(--bronze); border-color: var(--bronze); outline: none; }
+/* ====================== 振り返り：気分ボタン ====================== */
+.mood-btns {
+  display: flex;
+  justify-content: center;
+  gap: 0.8rem;
+  flex-wrap: wrap;
+  margin: 0 auto 1.6rem;
+}
+.mood-btn {
+  min-width: 128px;
+  padding: 0.85rem 1.2rem;
+  background: transparent;
+  border: 1px solid var(--line);
+  color: var(--ivory);
+  font-family: var(--serif-jp);
+  font-size: 1rem;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+  transition: border-color 0.25s ease, background 0.25s ease, transform 0.25s ease;
+}
+.mood-btn:hover, .mood-btn:focus-visible {
+  border-color: var(--bronze);
+  transform: translateY(-2px);
+  outline: none;
+}
+.mood-btn.sel {
+  border-color: var(--bronze);
+  background: rgba(197, 160, 92, 0.14);
+  color: var(--bronze-hi);
+}
+
 /* ====================== ふたり占い 名前入力 ====================== */
 .pair-box {
   display: flex;
@@ -1030,6 +1061,30 @@ h1, h2, h3 { font-weight: 400; text-wrap: balance; }
       </div>
       <div class="center-row">
         <button class="btn center" id="btn-pair-start"><svg class="ic"><use href="#ic-star"></use></svg>札を引きにいく</button>
+        <button class="btn-link" data-back="theme">テーマ選びに戻る</button>
+      </div>
+    </section>
+
+    <!-- 今日の振り返り占い -->
+    <section class="step hidden" id="step-reflect">
+      <p class="uni-say">おかえり。一日、おつかれさまだったワン。<br class="sp-br">寝る前に、うにと少しだけ今日を振り返ろ？<br class="sp-br">今日という日の意味と、明日への一枚を視てあげる。</p>
+      <div class="step-head">
+        <div class="kicker">Evening Reflection</div>
+        <h2>今日は、どんな一日だった？</h2>
+      </div>
+      <div class="mood-btns" id="mood-btns">
+        <button class="mood-btn" data-mood="good">よかった</button>
+        <button class="mood-btn" data-mood="normal">ふつう</button>
+        <button class="mood-btn" data-mood="hard">しんどかった</button>
+      </div>
+      <div class="concern-box">
+        <label class="concern-label" for="diary">今日あったこと（書かなくてもOK）</label>
+        <textarea id="diary" maxlength="200" rows="3"
+          placeholder="例：仕事でミスをして落ち込んだ。でも同僚がフォローしてくれた。"></textarea>
+        <p class="concern-hint">書いてくれたら、うにが今日の出来事の意味も一緒に読み解くワン。</p>
+      </div>
+      <div class="center-row">
+        <button class="btn center" id="btn-reflect-start"><svg class="ic"><use href="#ic-star"></use></svg>今日の札を引く</button>
         <button class="btn-link" data-back="theme">テーマ選びに戻る</button>
       </div>
     </section>
@@ -1589,9 +1644,17 @@ function setGreeting() {
 }
 
 // ===== 状態 =====
-const state = { theme: null, spread: null, needed: 0, picks: [], concern: "", mode: "solo", names: { a: "", b: "" } };
+const state = { theme: null, spread: null, needed: 0, picks: [], concern: "", mode: "solo", names: { a: "", b: "" }, mood: null };
 
 // ふたり占い専用スプレッド（スプレッド選択画面には出さない）
+// 今日の振り返り占い専用スプレッド（スプレッド選択画面には出さない）
+SPREADS.reflect = {
+  name: "今日の振り返り",
+  desc: "一日の終わりに、今日の意味と明日への一枚を視ます。",
+  count: 2,
+  positions: ["今日という日", "明日への一枚"]
+};
+
 SPREADS.pair = {
   name: "ふたり占い",
   desc: "ふたりの相性を3枚で視ます。",
@@ -1749,6 +1812,13 @@ function renderThemes() {
   pair.innerHTML = `${svg("ic-pair", "emblem")}<div class="name">ふたり占い</div><div class="en">Compatibility</div><div class="desc">ふたりの名前で相性を視ます</div>`;
   pair.addEventListener("click", () => show("step-pair"));
   grid.appendChild(pair);
+  // 今日の振り返り占いモード
+  const refl = document.createElement("button");
+  refl.className = "pick";
+  refl.style.setProperty("--accent", "#a99bd1");
+  refl.innerHTML = `${svg("orn-orb", "emblem")}<div class="name">今日の振り返り</div><div class="en">Evening Reflection</div><div class="desc">一日の終わりに、うにと今日を振り返ります</div>`;
+  refl.addEventListener("click", () => show("step-reflect"));
+  grid.appendChild(refl);
 }
 
 // ふたり占い：名前を確定して札引きへ
@@ -1766,12 +1836,25 @@ function startPair() {
   show("step-draw");
 }
 
+// 振り返り占い：気分を選んで札引きへ
+function startReflect() {
+  if (!state.mood) { toast("今日がどんな一日だったか、選んでほしいワン"); return; }
+  state.mode = "reflect";
+  state.theme = "general";        // 鑑定文の下地は総合運
+  state.concern = document.getElementById("diary").value.trim();
+  state.spread = "reflect";
+  state.needed = SPREADS.reflect.count;
+  state.picks = [];
+  renderDeck();
+  show("step-draw");
+}
+
 // ===== ② スプレッド =====
 function renderSpreads() {
   const grid = document.getElementById("spread-grid");
   grid.innerHTML = "";
   for (const [key, s] of Object.entries(SPREADS)) {
-    if (key === "pair") continue;   // ふたり占いはテーマ画面から入る
+    if (key === "pair" || key === "reflect") continue;   // 専用モードはテーマ画面から入る
     const el = document.createElement("button");
     el.className = "pick";
     el.innerHTML = `<div class="name">${s.name}</div><div class="en">${SPREAD_EN[key]||""}</div><div class="desc">${s.desc}</div>`;
@@ -1823,6 +1906,9 @@ function showResult() {
   if (isPair) {
     document.getElementById("result-title").innerHTML =
       `${svg("ic-pair", "theme-mark")}<h2>ふたり占い ・ ${esc(state.names.a)} と ${esc(state.names.b)}</h2>`;
+  } else if (state.mode === "reflect") {
+    document.getElementById("result-title").innerHTML =
+      `${svg("orn-orb", "theme-mark")}<h2>今日の振り返り ・ うにと一日のむすび</h2>`;
   } else {
     const theme = THEMES[state.theme], m = THEME_META[state.theme];
     document.getElementById("result-title").innerHTML =
@@ -1855,7 +1941,7 @@ function showResult() {
     wrap.appendChild(el);
   });
 
-  document.getElementById("reading-scroll").innerHTML = isPair ? pairSummary() : buildSummary();
+  document.getElementById("reading-scroll").innerHTML = isPair ? pairSummary() : (state.mode === "reflect" ? reflectSummary() : buildSummary());
   show("step-result");
 }
 
@@ -1898,6 +1984,71 @@ function pairSummary() {
   h += `<p>うにからのおまじない——${relD.advice}</p>`;
   h += `<p class="close">相性はね、決まりものじゃなくて、ふたりで育てるものだワン。今日の札は、その育て方のヒント。${a}と${b}に、あたたかい風が吹きますように。</p>`;
   h += `<p class="sign">― 占い師うに（ふたりのぶん、さつまいも2本もらえたら嬉しいな）</p>`;
+  return h;
+}
+
+// ===== 今日の振り返り占いの見立て =====
+const REFLECT_OPEN = {
+  good: "いい一日だったんだね。うにまで嬉しくなっちゃうワン。じゃ、今日の良い流れの正体、一緒に見てみよ。",
+  normal: "ふつうの日、か。……でもね、なんでもない日ほど、札はおもしろいことを言うんだワン。見てみよ。",
+  hard: "……うん。まずこれだけ言わせて。今日をちゃんと終えられたこと、それだけで十分えらいワン。ここからは、うにに任せて。"
+};
+const REFLECT_FRAME = {
+  good: c => `今日の良い流れの芯にあったのは「${c}」のテーマ。`,
+  normal: c => `なんでもない一日に見えて、その底では「${c}」のテーマが静かに動いていたみたい。`,
+  hard: c => `今日のしんどさの奥には、「${c}」のテーマが横たわっていたのかもしれないワン。`
+};
+const REFLECT_CLOSE = {
+  good: [
+    "今日の幸せはね、ちゃんと覚えておくと明日の燃料になるんだワン。おやすみ、また明日。",
+    "いい日をいい日のまま眠れるのは、才能だよ。そのまま、ゆっくりおやすみ。"
+  ],
+  normal: [
+    "なんでもない日を積み重ねられる人が、いちばん強いんだワン。今日もその一日。おやすみ。",
+    "平らな日は、心が休まっている証拠でもあるんだよ。明日もうにはここにいるからね。おやすみ。"
+  ],
+  hard: [
+    "今日のあなたに、明日は少しだけ優しくありますように。うにはずっと、あなたの味方だワン。おやすみ。",
+    "しんどい日は、無理にいい意味を見つけなくてもいい。眠って、忘れて、また明日。うにが待ってるから。"
+  ]
+};
+
+function reflectSummary() {
+  const mood = state.mood || "normal";
+  const uniSrc = document.getElementById("uni-portrait").src;
+  const today = state.picks[0], tomorrow = state.picks[1];
+  const td = (today.reversed ? today.card.reversed : today.card.upright).general;
+  const md = (tomorrow.reversed ? tomorrow.card.reversed : tomorrow.card.upright).general;
+
+  let h = `<div class="rs-head"><img src="${uniSrc}" alt="うに"><span class="t">占い師うにの見立て</span></div>`;
+  h += `<p class="open">「${REFLECT_OPEN[mood]}」</p>`;
+
+  // 今日という日
+  h += `<p>今日という日に出た札は「<b style="color:var(--bronze-hi)">${today.card.name}</b>」（${today.reversed ? "逆位置" : "正位置"}）。` +
+       `${REFLECT_FRAME[mood](today.card.essence)}${td.reading}</p>`;
+
+  // 日記があれば、その出来事を意味づける
+  if (state.concern) {
+    const topic = detectTopic();
+    const positive = mood === "good" || (mood === "normal" && !today.reversed);
+    h += `<div class="concern-answer"><span class="ca-label">Today&rsquo;s Note ・ 今日あったこと</span>`;
+    h += `<p class="ca-quote">「${esc(shorten(state.concern, 90))}」</p>`;
+    h += `<p>うん、聴かせてくれてありがとう。`;
+    h += topic
+      ? (positive ? topic.up : topic.rev)
+      : (positive
+        ? "その出来事はね、ちゃんと良い流れの一部だったと思うワン。偶然に見えても、あなたが積んできたものが形になっただけだよ。"
+        : "その出来事は、あなたが悪かったから起きたんじゃない。札を見るかぎり、これは「見直す機会」として来たもの。今日のうちに意味づけしなくていいからね。");
+    h += `</p></div>`;
+  }
+
+  // 明日への一枚
+  h += `<p>そして、明日への一枚は「<b style="color:var(--bronze-hi)">${tomorrow.card.name}</b>」（${tomorrow.reversed ? "逆位置" : "正位置"}）——${tomorrow.card.essence}。` +
+       `明日はこれをポケットに入れていって。${md.advice}</p>`;
+
+  const closes = REFLECT_CLOSE[mood];
+  h += `<p class="close">${closes[Math.floor(Math.random() * closes.length)]}</p>`;
+  h += `<p class="sign">― 占い師うに（今日もおつかれさま。……うにも寝る前のさつまいも、食べよっと）</p>`;
   return h;
 }
 
@@ -1969,6 +2120,8 @@ function restart() {
   state.theme = state.spread = null;
   state.picks = []; state.needed = 0;
   state.mode = "solo"; state.names = { a: "", b: "" };
+  state.mood = null;
+  document.querySelectorAll(".mood-btn").forEach(b => b.classList.remove("sel"));
   setGreeting(); renderThemes(); show("step-theme");
 }
 
@@ -1978,6 +2131,11 @@ document.getElementById("btn-restart").addEventListener("click", restart);
 document.getElementById("btn-share").addEventListener("click", shareReading);
 document.getElementById("btn-image").addEventListener("click", saveResultImage);
 document.getElementById("btn-pair-start").addEventListener("click", startPair);
+document.getElementById("btn-reflect-start").addEventListener("click", startReflect);
+document.querySelectorAll(".mood-btn").forEach(b => b.addEventListener("click", () => {
+  state.mood = b.dataset.mood;
+  document.querySelectorAll(".mood-btn").forEach(x => x.classList.toggle("sel", x === b));
+}));
 
 // ===== さつまいも評価（3段階）と匿名データ送信 =====
 const RATE_THANKS = {
@@ -2043,9 +2201,11 @@ function submitRating(level) {
     "form-name": "uni-hyoka",
     rating: String(level),
     ratingLabel: ["", "少し", "普通", "たくさん"][level],
-    theme: state.mode === "pair" ? "ふたり占い" : (THEMES[state.theme] ? THEMES[state.theme].name : ""),
+    theme: state.mode === "pair" ? "ふたり占い" : (state.mode === "reflect" ? "振り返り占い" : (THEMES[state.theme] ? THEMES[state.theme].name : "")),
     spread: SPREADS[state.spread] ? SPREADS[state.spread].name : "",
-    topic: state.mode === "pair" ? "相性占い" : (topic ? topic.name : (state.concern ? "未分類" : "相談なし")),
+    topic: state.mode === "pair" ? "相性占い"
+      : (state.mode === "reflect" ? "振り返り(" + ({good:"よかった",normal:"ふつう",hard:"しんどかった"}[state.mood] || "-") + ")"
+      : (topic ? topic.name : (state.concern ? "未分類" : "相談なし"))),
     concern: state.concern.slice(0, 200),
     cards: state.picks.map(p => p.card.name + (p.reversed ? "(逆)" : "(正)")).join("、"),
     upright: String(state.picks.filter(p => !p.reversed).length),
@@ -2095,6 +2255,8 @@ function shareReading() {
   let text;
   if (state.mode === "pair") {
     text = `シーズーうにの占いの館で、ふたり占いをしたワン。相性は ${pairScore()}%。あなたも誰かと占ってみる？`;
+  } else if (state.mode === "reflect") {
+    text = `シーズーうにの館で、今日を振り返ってもらったワン。明日への一枚は「${state.picks[1] ? state.picks[1].card.name : ""}」。あなたの今日は、どんな一日だった？`;
   } else {
     const theme = state.theme ? THEMES[state.theme].name : "";
     const spread = state.spread ? SPREADS[state.spread].name : "";
