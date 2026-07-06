@@ -1,15 +1,21 @@
 name: Apply patch (remote push helper)
 
-# 開発環境からの git push が使えない場合に、差分(base64)を受け取って main へ適用する。
+# 開発環境からの git push が使えない場合の反映経路。
+# 推奨: patches/pending.diff をリポジトリにコミットしてから patch_file を指定して実行。
+# （dispatch入力の巨大base64は転送で壊れることがあるため補助扱い）
 # 注意: GITHUB_TOKEN によるコミットは他のワークフローを起動しないため、
 # 反映後は "Deploy site to Netlify" を手動起動すること。
 
 on:
   workflow_dispatch:
     inputs:
+      patch_file:
+        description: "リポジトリ内のパッチファイルパス（例: patches/pending.diff）"
+        required: false
+        type: string
       patch_b64:
-        description: "base64-encoded git diff"
-        required: true
+        description: "base64-encoded git diff（patch_file が無い場合のみ使用）"
+        required: false
         type: string
       message:
         description: "commit message"
@@ -26,11 +32,17 @@ jobs:
       - uses: actions/checkout@v4
       - name: Apply and push
         env:
+          PF: ${{ inputs.patch_file }}
           PB: ${{ inputs.patch_b64 }}
           MSG: ${{ inputs.message }}
         run: |
-          printf '%s' "$PB" | base64 -d > /tmp/p.diff
+          if [ -n "$PF" ]; then
+            cp "$PF" /tmp/p.diff
+          else
+            printf '%s' "$PB" | base64 -d > /tmp/p.diff
+          fi
           git apply --whitespace=nowarn /tmp/p.diff
+          if [ -n "$PF" ]; then rm -f "$PF"; fi
           git config user.name "5newold111"
           git config user.email "5newold111@gmail.com"
           git add -A
