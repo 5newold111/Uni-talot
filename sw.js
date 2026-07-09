@@ -1,6 +1,6 @@
 // シーズーうにの占いの館 — Service Worker
 // バージョンを上げると古いキャッシュを破棄して更新が反映されます
-const VERSION = "uni-tarot-v7";
+const VERSION = "uni-tarot-v8";
 const CORE = [
   "./",
   "./index.html",

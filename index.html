@@ -612,6 +612,30 @@ h1, h2, h3 { font-weight: 400; text-wrap: balance; }
   transition: color 0.25s ease, border-color 0.25s ease;
 }
 .btn-link:hover, .btn-link:focus-visible { color: var(--bronze); border-color: var(--bronze); outline: none; }
+/* 明日できること チェックリスト */
+.uni-todo {
+  list-style: none;
+  margin: 0.4rem 0 0.2rem;
+  padding: 0;
+}
+.uni-todo li {
+  position: relative;
+  padding: 0.45rem 0 0.45rem 2rem;
+  line-height: 1.7;
+  border-bottom: 1px dashed rgba(197, 160, 92, 0.2);
+}
+.uni-todo li:last-child { border-bottom: none; }
+.uni-todo li::before {
+  content: "";
+  position: absolute;
+  left: 0.3rem;
+  top: 0.85rem;
+  width: 0.85rem;
+  height: 0.85rem;
+  border: 1px solid var(--bronze);
+  background: rgba(197, 160, 92, 0.06);
+}
+
 /* ====================== 振り返り：気分ボタン ====================== */
 .mood-btns {
   display: flex;
@@ -1647,6 +1671,14 @@ function setGreeting() {
 const state = { theme: null, spread: null, needed: 0, picks: [], concern: "", mode: "solo", names: { a: "", b: "" }, mood: null };
 
 // ふたり占い専用スプレッド（スプレッド選択画面には出さない）
+// 明日の占い専用スプレッド（ワンタップ・スプレッド選択画面には出さない）
+SPREADS.tomorrow = {
+  name: "明日の占い",
+  desc: "ワンタップで、明日の札と「明日できること」を視ます。",
+  count: 1,
+  positions: ["明日のあなたへ"]
+};
+
 // 今日の振り返り占い専用スプレッド（スプレッド選択画面には出さない）
 SPREADS.reflect = {
   name: "今日の振り返り",
@@ -1819,6 +1851,13 @@ function renderThemes() {
   refl.innerHTML = `${svg("orn-orb", "emblem")}<div class="name">今日の振り返り</div><div class="en">Evening Reflection</div><div class="desc">一日の終わりに、うにと今日を振り返ります</div>`;
   refl.addEventListener("click", () => show("step-reflect"));
   grid.appendChild(refl);
+  // 明日の占い（ワンタップ）
+  const tmw = document.createElement("button");
+  tmw.className = "pick";
+  tmw.style.setProperty("--accent", "var(--bronze-hi)");
+  tmw.innerHTML = `${svg("ic-star", "emblem")}<div class="name">明日の占い</div><div class="en">Tomorrow ・ One Tap</div><div class="desc">タップするだけ。明日の札と「明日できること」をうにが選びます</div>`;
+  tmw.addEventListener("click", startTomorrow);
+  grid.appendChild(tmw);
 }
 
 // ふたり占い：名前を確定して札引きへ
@@ -1834,6 +1873,36 @@ function startPair() {
   state.picks = [];
   renderDeck();
   show("step-draw");
+}
+
+// 明日の占い：日付と端末から札を自動決定（同じ明日は何度視ても同じ札）
+function tomorrowPick() {
+  const d = new Date(); d.setDate(d.getDate() + 1);
+  const key = d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate();
+  let salt = 0;
+  try {
+    salt = Number(localStorage.getItem("uni_salt")) || 0;
+    if (!salt) { salt = Math.floor(Math.random() * 1e9) + 1; localStorage.setItem("uni_salt", String(salt)); }
+  } catch (e) { salt = 123457; }
+  let x = (key ^ salt) >>> 0;
+  x ^= x << 13; x >>>= 0; x ^= x >> 17; x ^= x << 5; x >>>= 0;
+  return {
+    card: TAROT_CARDS[x % 22],
+    reversed: ((x >> 8) & 1) === 1,
+    dateLabel: `${d.getMonth() + 1}月${d.getDate()}日`
+  };
+}
+
+function startTomorrow() {
+  const pick = tomorrowPick();
+  state.mode = "tomorrow";
+  state.theme = "general";
+  state.concern = "";
+  state.spread = "tomorrow";
+  state.needed = 1;
+  state.picks = [{ card: pick.card, reversed: pick.reversed }];
+  state.tomorrowDate = pick.dateLabel;
+  gazeThenReveal();   // 札引き画面を飛ばして、水晶玉演出→結果へ
 }
 
 // 振り返り占い：気分を選んで札引きへ
@@ -1854,7 +1923,7 @@ function renderSpreads() {
   const grid = document.getElementById("spread-grid");
   grid.innerHTML = "";
   for (const [key, s] of Object.entries(SPREADS)) {
-    if (key === "pair" || key === "reflect") continue;   // 専用モードはテーマ画面から入る
+    if (key === "pair" || key === "reflect" || key === "tomorrow") continue;   // 専用モードはテーマ画面から入る
     const el = document.createElement("button");
     el.className = "pick";
     el.innerHTML = `<div class="name">${s.name}</div><div class="en">${SPREAD_EN[key]||""}</div><div class="desc">${s.desc}</div>`;
@@ -1909,6 +1978,9 @@ function showResult() {
   } else if (state.mode === "reflect") {
     document.getElementById("result-title").innerHTML =
       `${svg("orn-orb", "theme-mark")}<h2>今日の振り返り ・ うにと一日のむすび</h2>`;
+  } else if (state.mode === "tomorrow") {
+    document.getElementById("result-title").innerHTML =
+      `${svg("ic-star", "theme-mark")}<h2>明日の占い ・ ${state.tomorrowDate}のあなたへ</h2>`;
   } else {
     const theme = THEMES[state.theme], m = THEME_META[state.theme];
     document.getElementById("result-title").innerHTML =
@@ -1941,7 +2013,7 @@ function showResult() {
     wrap.appendChild(el);
   });
 
-  document.getElementById("reading-scroll").innerHTML = isPair ? pairSummary() : (state.mode === "reflect" ? reflectSummary() : buildSummary());
+  document.getElementById("reading-scroll").innerHTML = isPair ? pairSummary() : (state.mode === "reflect" ? reflectSummary() : (state.mode === "tomorrow" ? tomorrowSummary() : buildSummary()));
   show("step-result");
 }
 
@@ -2012,6 +2084,52 @@ const REFLECT_CLOSE = {
     "しんどい日は、無理にいい意味を見つけなくてもいい。眠って、忘れて、また明日。うにが待ってるから。"
   ]
 };
+
+// 各札の「明日できること」（カードid順・具体的な行動単位）
+const TOMORROW_ACTIONS = [
+  ["行ったことのない道や店を、ひとつだけ試してみる", "気になっていたことを5分だけ調べて、最初の一歩をメモする", "「やってみたい」を、誰かに口に出して言ってみる"],
+  ["朝いちばんに、明日やることを3つ書き出す", "得意なことで、誰かを1回だけ助ける", "後回しにしていた連絡を、1件だけ送る"],
+  ["10分だけスマホを置いて、静かな時間をつくる", "直感で「なんか違う」と感じたことを、1つメモする", "寝る前に、今日の気づきを1行だけ書く"],
+  ["自分に小さなごほうびを、1つあげる", "「ありがとう」を、言葉にして1回伝える", "部屋に花や緑をひとつ足す（お店で眺めるだけでもいい）"],
+  ["迷っていたことを、1つだけ決める", "予定のどれかに、締切を1つ入れる", "姿勢を正して、深呼吸を3回する"],
+  ["詳しい人に、質問を1つしてみる", "基本に戻って、資料や説明書を1つ読み直す", "お世話になっている人に、丁寧な挨拶をする"],
+  ["会いたい人に、連絡を1件だけ入れる", "選択に迷ったら「ワクワクする方」を選ぶ", "好きなもの（お菓子でも話でも）を誰かと分け合う"],
+  ["いちばん重いタスクに、朝一番の15分だけ手をつける", "移動は少しだけ早歩きにしてみる", "「やる」と決めたことに、その日のうちに着手する"],
+  ["イラッとしたら、6秒だけ待ってみる", "続けていることを、1回ぶんだけでも継続する", "がんばっている自分を、1回だけ声に出してほめる"],
+  ["30分だけ、ひとりの時間を確保する", "学びたいことを、1ページだけ読む", "通知を1時間だけ切ってみる"],
+  ["誘われたら、1回だけ乗ってみる", "「変わりそうだな」と感じた兆しを1つメモする", "いつもと違う道順・順番を試してみる"],
+  ["保留にしていた判断を、公平な目で1つ決める", "お金や記録の帳尻を、1か所だけ整える", "約束の時間を、きっちり守る"],
+  ["急ぎたくなっても、1件だけ「待つ」と決める", "相手の立場から、1回だけ考え直してみる", "予定に「なにもしない休憩」を入れる"],
+  ["使っていないものを、1つ手放す", "やめたい習慣を、明日1日だけやめてみる", "やりかけの作業を、1つ完了させて終わらせる"],
+  ["水をこまめに飲んで、食事は腹八分を意識する", "予定と予定の間に、30分の余白をつくる", "極端になっていることを、1つだけ中間に戻す"],
+  ["だらだら見てしまうアプリに、時間制限をかける", "「つい」の出費を、1回だけ我慢する", "誘惑に負けやすい時間帯に、別の予定を入れておく"],
+  ["備えを1つ点検する（バックアップ・持ち物・お金）", "見ないふりをしている問題に、5分だけ向き合う", "壊れたら直すより「作り直す」で考えてみる"],
+  ["願いごとを1つ、紙に書いてみる", "夜空か遠くの景色を、1分だけ眺める", "理想に近づく小さな一歩を、1つだけ踏む"],
+  ["不安をぜんぶ書き出して、事実だけに丸をつける", "曖昧になっている約束を、1つ確認する", "いつもより30分早く布団に入る"],
+  ["朝の光を、数分あびる", "誰かを1回笑わせる（自分が笑うでもいい）", "得意なことを、遠慮せず堂々とやる"],
+  ["昔やりかけたことを、1つだけ再開してみる", "過去の自分に「あれのおかげ」を1つ見つける", "溜まった通知やメールを、まとめて清算する"],
+  ["やりかけのことを、1つ完了させる", "がんばった自分に「お疲れさま」を言う", "次の目標を、1行だけ書いてみる"]
+];
+
+// 明日の占いの見立て（ワンタップ用）
+function tomorrowSummary() {
+  const p = state.picks[0];
+  const d = (p.reversed ? p.card.reversed : p.card.upright).general;
+  const acts = TOMORROW_ACTIONS[p.card.id];
+  const uniSrc = document.getElementById("uni-portrait").src;
+
+  let h2 = `<div class="rs-head"><img src="${uniSrc}" alt="うに"><span class="t">占い師うにの見立て</span></div>`;
+  h2 += `<p class="open">「${state.tomorrowDate}の札、うにがもう視ておいたワン。」</p>`;
+  h2 += `<p>明日のあなたに出たのは「<b style="color:var(--bronze-hi)">${p.card.name}</b>」（${p.reversed ? "逆位置" : "正位置"}）——${p.card.essence}。${d.reading}</p>`;
+  h2 += `<div class="concern-answer"><span class="ca-label">Tomorrow&rsquo;s To-Do ・ 明日できること</span>`;
+  h2 += p.reversed
+    ? `<p>逆位置だから、ぜんぶやろうとしなくていいワン。この中から<b style="color:var(--bronze-hi)">いちばん軽いものをひとつだけ</b>、選んでやってみて。</p>`
+    : `<p>この札の力を借りるなら、明日はこんなことができるワン。できそうなものだけでいいよ。</p>`;
+  h2 += `<ul class="uni-todo">` + acts.map(a => `<li>${a}</li>`).join("") + `</ul></div>`;
+  h2 += `<p class="close">この札は${state.tomorrowDate}のあいだ、何度視ても変わらないよ。だから安心して、今日はゆっくり休んで。明日の夜、どうだったか「今日の振り返り」で聞かせてくれたら嬉しいな。</p>`;
+  h2 += `<p class="sign">― 占い師うに（明日のぶんのさつまいもも、そなえて寝るワン）</p>`;
+  return h2;
+}
 
 function reflectSummary() {
   const mood = state.mood || "normal";
@@ -2201,11 +2319,12 @@ function submitRating(level) {
     "form-name": "uni-hyoka",
     rating: String(level),
     ratingLabel: ["", "少し", "普通", "たくさん"][level],
-    theme: state.mode === "pair" ? "ふたり占い" : (state.mode === "reflect" ? "振り返り占い" : (THEMES[state.theme] ? THEMES[state.theme].name : "")),
+    theme: state.mode === "pair" ? "ふたり占い" : (state.mode === "reflect" ? "振り返り占い" : (state.mode === "tomorrow" ? "明日の占い" : (THEMES[state.theme] ? THEMES[state.theme].name : ""))),
     spread: SPREADS[state.spread] ? SPREADS[state.spread].name : "",
     topic: state.mode === "pair" ? "相性占い"
       : (state.mode === "reflect" ? "振り返り(" + ({good:"よかった",normal:"ふつう",hard:"しんどかった"}[state.mood] || "-") + ")"
-      : (topic ? topic.name : (state.concern ? "未分類" : "相談なし"))),
+      : (state.mode === "tomorrow" ? "明日の占い"
+      : (topic ? topic.name : (state.concern ? "未分類" : "相談なし")))),
     concern: state.concern.slice(0, 200),
     cards: state.picks.map(p => p.card.name + (p.reversed ? "(逆)" : "(正)")).join("、"),
     upright: String(state.picks.filter(p => !p.reversed).length),
@@ -2257,6 +2376,8 @@ function shareReading() {
     text = `シーズーうにの占いの館で、ふたり占いをしたワン。相性は ${pairScore()}%。あなたも誰かと占ってみる？`;
   } else if (state.mode === "reflect") {
     text = `シーズーうにの館で、今日を振り返ってもらったワン。明日への一枚は「${state.picks[1] ? state.picks[1].card.name : ""}」。あなたの今日は、どんな一日だった？`;
+  } else if (state.mode === "tomorrow") {
+    text = `シーズーうにの館で、明日の占いをしたワン。${state.tomorrowDate}の札は「${state.picks[0].card.name}」。あなたの明日も視てもらう？`;
   } else {
     const theme = state.theme ? THEMES[state.theme].name : "";
     const spread = state.spread ? SPREADS[state.spread].name : "";
