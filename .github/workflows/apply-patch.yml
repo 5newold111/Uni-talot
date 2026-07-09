@@ -1,8 +1,9 @@
 name: Apply patch (remote push helper)
 
 # 開発環境からの git push が使えない場合の反映経路。
-# 推奨: patches/pending.b64（git diff を base64 化したもの）をコミットして patch_file で指定。
-# base64 は記号を含まないため、転送時のエスケープ破損が起きない。
+# 推奨: git diff を base64 化し 1900 バイトごとに分割して patches/parts/pNN として
+# コミットし、patch_file に "parts" を指定する（分割アップロードで転送破損を防ぎ、
+# 各チャンクをアップロード後にバイト比較で検証できる）。
 # 注意: GITHUB_TOKEN によるコミットは他のワークフローを起動しないため、
 # 反映後は "Deploy site to Netlify" を手動起動すること。
 
@@ -10,7 +11,7 @@ on:
   workflow_dispatch:
     inputs:
       patch_file:
-        description: "リポジトリ内のパッチファイル（.b64 なら base64 として解釈）"
+        description: "リポジトリ内のパッチファイル（parts なら patches/parts/* を連結、.b64 なら base64 として解釈）"
         required: false
         type: string
       patch_b64:
@@ -36,7 +37,9 @@ jobs:
           PB: ${{ inputs.patch_b64 }}
           MSG: ${{ inputs.message }}
         run: |
-          if [ -n "$PF" ]; then
+          if [ "$PF" = "parts" ]; then
+            cat patches/parts/p* | base64 -d > /tmp/p.diff
+          elif [ -n "$PF" ]; then
             case "$PF" in
               *.b64) base64 -d "$PF" > /tmp/p.diff ;;
               *)     cp "$PF" /tmp/p.diff ;;
@@ -45,8 +48,7 @@ jobs:
             printf '%s' "$PB" | base64 -d > /tmp/p.diff
           fi
           git apply --whitespace=nowarn /tmp/p.diff
-          if [ -n "$PF" ]; then rm -f "$PF"; fi
-          rm -f patches/pending.diff patches/pending.b64
+          rm -rf patches
           git config user.name "5newold111"
           git config user.email "5newold111@gmail.com"
           git add -A
