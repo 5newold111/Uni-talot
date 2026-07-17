@@ -305,6 +305,55 @@ ul.plain .grow { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsi
   padding: 8px 14px;
 }
 
+/* ---- 家族共有（Google連携） ---- */
+.banner {
+  background: #fdf3ee;
+  border: 1px solid #f2d9cd;
+  border-radius: 12px;
+  padding: 10px 14px;
+  font-size: .85rem;
+  margin-bottom: 12px;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  justify-content: space-between;
+}
+.banner button { background: var(--accent); color: #fff; padding: 7px 14px; flex-shrink: 0; font-weight: 700; }
+.duty.mine { background: #fdf3ee; border-radius: 10px; padding-left: 8px; padding-right: 6px; }
+.badge.you { background: var(--accent); color: #fff; }
+.badge.linked { background: var(--green-bg); color: var(--green); }
+.chips.seg { margin: 0 2px 12px; }
+.chips.seg button.on { background: var(--accent); color: #fff; font-weight: 700; }
+.cloud-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+.g-btn {
+  background: #fff;
+  border: 1px solid var(--line);
+  color: var(--ink);
+  padding: 9px 16px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.g-btn .g { color: #4285f4; font-weight: 900; font-family: Arial, sans-serif; }
+.btn-plain { background: #f2ece3; color: var(--ink); padding: 8px 14px; }
+.btn-danger { background: none; color: #b0433a; padding: 8px 4px; font-size: .74rem; text-decoration: underline; }
+.btn-accent { background: var(--accent); color: #fff; padding: 9px 16px; font-weight: 700; }
+textarea.cfg {
+  width: 100%;
+  min-height: 96px;
+  font-family: ui-monospace, monospace;
+  font-size: .72rem;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #fdfbf7;
+  padding: 8px;
+  margin-top: 8px;
+}
+.avatar img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; display: block; }
+.cal-note { font-size: .76rem; color: var(--ink-dim); margin-top: 6px; }
+select#cal-hour { margin-left: 4px; }
+
 @media (min-width: 700px) {
   body { padding-bottom: 24px; }
   nav.tabs {
@@ -335,6 +384,8 @@ ul.plain .grow { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsi
 <main>
   <!-- 今日 -->
   <section class="view active" id="view-today">
+    <div id="today-banner"></div>
+    <div class="chips seg" id="mine-filter" style="display:none"></div>
     <div class="card">
       <h2>今日の当番 <span class="sub">毎日交代</span></h2>
       <div class="progress-note" id="today-progress"></div>
@@ -369,6 +420,31 @@ ul.plain .grow { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsi
 
   <!-- 設定 -->
   <section class="view" id="view-manage">
+    <div class="card" id="cloud-card"></div>
+
+    <div class="card" id="cal-card" style="display:none">
+      <h2>Googleカレンダーで通知</h2>
+      <div class="cloud-row">
+        <label style="font-size:.85rem">通知時刻
+          <select id="cal-hour">
+            <option value="7">7:00</option>
+            <option value="8" selected>8:00</option>
+            <option value="9">9:00</option>
+            <option value="10">10:00</option>
+            <option value="12">12:00</option>
+            <option value="17">17:00</option>
+            <option value="18">18:00</option>
+            <option value="19">19:00</option>
+            <option value="20">20:00</option>
+          </select>
+        </label>
+        <button class="btn-accent" data-act="cal-sync" id="cal-sync">14日分を登録</button>
+        <button class="btn-plain" data-act="cal-clear">登録を解除</button>
+      </div>
+      <p class="cal-note">あなたの当番の日に、あなたのGoogleカレンダーへ予定と通知を登録します（週1回の当番は土曜日にまとめて通知）。当番や設定を変えたら、もう一度「登録」を押すと新しい内容に更新されます。</p>
+      <p class="cal-note" id="cal-last"></p>
+    </div>
+
     <div class="card">
       <h2>メンバー <span class="sub">並び順＝当番の順番</span></h2>
       <ul class="plain" id="member-list"></ul>
@@ -433,7 +509,8 @@ function load() {
 }
 
 function save() {
-  localStorage.setItem(STORE_KEY, JSON.stringify(store));
+  if (cloud.active) cloudSave();
+  else localStorage.setItem(STORE_KEY, JSON.stringify(store));
   renderAll();
 }
 
@@ -519,6 +596,7 @@ function esc(s) {
 function avatarHtml(m, small) {
   const cls = "avatar" + (small ? " small" : "");
   if (!m) return `<span class="${cls} none">？</span>`;
+  if (m.photo) return `<span class="${cls}"><img src="${esc(m.photo)}" alt="" referrerpolicy="no-referrer"></span>`;
   return `<span class="${cls}" style="background:${m.color}">${esc(m.name.slice(0, 1))}</span>`;
 }
 
@@ -527,6 +605,7 @@ function renderAll() {
   renderSched();
   renderStats();
   renderManage();
+  renderCloud();
 }
 
 function noDataHtml() {
@@ -540,7 +619,7 @@ function dutyRowHtml(task, d) {
   const a = assignee(task, d);
   const done = !!store.done[task.id + ":" + periodKey(task, d)];
   return `
-    <div class="duty${done ? " is-done" : ""}">
+    <div class="duty${done ? " is-done" : ""}${isMe(a) ? " mine" : ""}">
       <div class="task">
         <div class="name">${esc(task.name)}</div>
         <div class="meta">${periodLabel(task)}</div>
@@ -554,9 +633,19 @@ function dutyRowHtml(task, d) {
 function renderToday() {
   const t = today();
   $("#today-date").textContent = `${t.getFullYear()}年${t.getMonth() + 1}月${t.getDate()}日（${WD[t.getDay()]}）`;
+  renderTodayBanner();
 
-  const daily = store.tasks.filter(x => x.freq === "daily");
-  const weekly = store.tasks.filter(x => x.freq === "weekly");
+  const me = myMember();
+  const filterEl = $("#mine-filter");
+  if (me) {
+    filterEl.style.display = "";
+    filterEl.innerHTML =
+      `<button class="${viewMine ? "" : "on"}" data-act="mine-all">みんな</button>` +
+      `<button class="${viewMine ? "on" : ""}" data-act="mine-only">自分だけ</button>`;
+  } else {
+    filterEl.style.display = "none";
+  }
+
   const ws = weekStart(t);
   $("#week-range").textContent = `${fmtMD(ws)}〜${fmtMD(addDays(ws, 6))}`;
 
@@ -567,12 +656,16 @@ function renderToday() {
     return;
   }
 
+  const mineOnly = !!(me && viewMine);
+  const daily = store.tasks.filter(x => x.freq === "daily" && (!mineOnly || isMe(assignee(x, t))));
+  const weekly = store.tasks.filter(x => x.freq === "weekly" && (!mineOnly || isMe(assignee(x, t))));
+
   $("#today-list").innerHTML = daily.length
     ? daily.map(x => dutyRowHtml(x, t)).join("")
-    : `<div class="empty">「毎日」の掃除場所はまだありません。</div>`;
+    : `<div class="empty">${mineOnly ? "今日のあなたの当番はありません 🎉" : "「毎日」の掃除場所はまだありません。"}</div>`;
   $("#week-list").innerHTML = weekly.length
     ? weekly.map(x => dutyRowHtml(x, t)).join("")
-    : `<div class="empty">「週1回」の掃除場所はまだありません。</div>`;
+    : `<div class="empty">${mineOnly ? "今週のあなたの当番はありません 🎉" : "「週1回」の掃除場所はまだありません。"}</div>`;
 
   const all = [...daily, ...weekly];
   const doneCount = all.filter(x => store.done[x.id + ":" + periodKey(x, t)]).length;
@@ -661,7 +754,7 @@ function renderManage() {
   $("#member-list").innerHTML = store.members.map((m, i) => `
     <li>
       ${avatarHtml(m)}
-      <span class="grow">${esc(m.name)}</span>
+      <span class="grow">${esc(m.name)}${m.uid ? (isMe(m) ? ` <span class="badge you">あなた</span>` : ` <span class="badge linked">連携済</span>`) : ""}</span>
       <button class="icon-btn" data-mup="${m.id}" ${i === 0 ? "disabled" : ""} title="上へ">▲</button>
       <button class="icon-btn" data-mdown="${m.id}" ${i === store.members.length - 1 ? "disabled" : ""} title="下へ">▼</button>
       <button class="icon-btn" data-mdel="${m.id}" title="削除">✕</button>
@@ -714,6 +807,9 @@ document.querySelector("nav.tabs").addEventListener("click", e => {
 });
 
 document.body.addEventListener("click", e => {
+  const act = e.target.closest("[data-act]");
+  if (act) { cloudAction(act.dataset.act, act); return; }
+
   const go = e.target.closest("[data-go]");
   if (go) { showView(go.dataset.go); return; }
 
@@ -805,6 +901,446 @@ $("#backup-import").addEventListener("click", () => {
   }
 });
 
+/* ================= 家族共有（Google連携） ================= */
+/*
+ * Firebase Authentication（Googleログイン）＋ Firestore で家族の当番表を共有する。
+ * 設定（firebaseConfig）が保存されていない間は一切読み込まず、従来どおりのローカル動作。
+ * 通知はサーバー不要の方式として、本人の Google カレンダーに当番予定を登録して行う。
+ */
+
+const CLOUD_KEY = "toban-cloud-v1";
+const cloud = {
+  cfg: null,          // { config: firebaseConfig, familyId: 招待コード }
+  FB: null, auth: null, db: null,
+  user: null,
+  active: false,      // 家族ドキュメントを購読中
+  unsub: null,
+  ready: false,       // 認証状態の初回判定が済んだ
+  error: null,
+  joined: false,      // 招待リンク経由で設定された
+  accessToken: null, tokenAt: 0, tokenHasCal: false,
+};
+let viewMine = false;
+
+function myMember() {
+  return cloud.user ? store.members.find(m => m.uid === cloud.user.uid) : null;
+}
+function isMe(m) {
+  return !!(m && cloud.user && m.uid === cloud.user.uid);
+}
+
+function b64uEnc(s) { return btoa(unescape(encodeURIComponent(s))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, ""); }
+function b64uDec(s) { return decodeURIComponent(escape(atob(s.replace(/-/g, "+").replace(/_/g, "/")))); }
+function randCode(n) {
+  const chars = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
+  let out = "";
+  for (let i = 0; i < n; i++) out += chars[Math.floor(Math.random() * chars.length)];
+  return out;
+}
+
+function saveCloudCfg() {
+  if (cloud.cfg) localStorage.setItem(CLOUD_KEY, JSON.stringify(cloud.cfg));
+  else localStorage.removeItem(CLOUD_KEY);
+}
+
+async function loadFB() {
+  if (window.__tobanFakeFB) return window.__tobanFakeFB; // テスト用差し替え口
+  const v = "10.12.2";
+  const [a, b, c] = await Promise.all([
+    import(`https://www.gstatic.com/firebasejs/${v}/firebase-app.js`),
+    import(`https://www.gstatic.com/firebasejs/${v}/firebase-auth.js`),
+    import(`https://www.gstatic.com/firebasejs/${v}/firebase-firestore.js`),
+  ]);
+  return Object.assign({}, a, b, c);
+}
+
+function handleInviteHash() {
+  const m = location.hash.match(/[#&]join=([A-Za-z0-9_-]+)/);
+  if (!m) return;
+  try {
+    const j = JSON.parse(b64uDec(m[1]));
+    if (j && j.c && j.c.apiKey && j.f) {
+      cloud.cfg = { config: j.c, familyId: j.f };
+      saveCloudCfg();
+      cloud.joined = true;
+      showView("manage");
+    }
+  } catch (e) {
+    alert("招待リンクを読み取れませんでした。リンクが途中で切れていないか確認してください。");
+  }
+  history.replaceState(null, "", location.pathname + location.search);
+}
+
+async function cloudInit() {
+  try {
+    const raw = localStorage.getItem(CLOUD_KEY);
+    if (raw) cloud.cfg = JSON.parse(raw);
+  } catch (e) { /* 壊れた設定は無視 */ }
+  handleInviteHash();
+  if (!cloud.cfg || !cloud.cfg.config) { renderCloud(); return; }
+  try {
+    const FB = cloud.FB = await loadFB();
+    const app = FB.initializeApp(cloud.cfg.config);
+    cloud.auth = FB.getAuth(app);
+    cloud.db = FB.getFirestore(app);
+    FB.onAuthStateChanged(cloud.auth, u => {
+      cloud.user = u;
+      cloud.ready = true;
+      if (u && cloud.cfg.familyId) {
+        subscribeFamily();
+      } else {
+        unsubscribeFamily();
+        store = load();  // ログアウト中はこの端末のローカルデータに戻す
+        renderAll();
+      }
+    });
+  } catch (e) {
+    cloud.ready = true;
+    cloud.error = "共有機能を読み込めませんでした（" + (e.message || e) + "）";
+    renderAll();
+  }
+}
+
+function unsubscribeFamily() {
+  if (cloud.unsub) { cloud.unsub(); cloud.unsub = null; }
+  cloud.active = false;
+}
+
+function subscribeFamily() {
+  unsubscribeFamily();
+  const FB = cloud.FB;
+  cloud.unsub = FB.onSnapshot(FB.doc(cloud.db, "families", cloud.cfg.familyId), snap => {
+    if (snap.exists()) {
+      const d = snap.data();
+      store = { members: d.members || [], tasks: d.tasks || [], done: d.done || {}, overrides: d.overrides || {} };
+      cloud.active = true;
+      cloud.error = null;
+    } else {
+      cloud.active = false;
+      cloud.error = "家族グループが見つかりませんでした。招待リンクをもう一度確認してください。";
+    }
+    renderAll();
+  }, err => {
+    cloud.active = false;
+    cloud.error = "同期できませんでした（" + (err.code || err.message) + "）。ログインし直すか、Firestoreのルール設定を確認してください。";
+    renderAll();
+  });
+}
+
+function cloudSave() {
+  const FB = cloud.FB;
+  FB.setDoc(FB.doc(cloud.db, "families", cloud.cfg.familyId), {
+    members: store.members,
+    tasks: store.tasks,
+    done: store.done,
+    overrides: store.overrides,
+    updatedAt: Date.now(),
+  }).catch(e => alert("保存できませんでした：" + (e.message || e)));
+}
+
+async function signInGoogle(withCal) {
+  const FB = cloud.FB;
+  const p = new FB.GoogleAuthProvider();
+  if (withCal) p.addScope("https://www.googleapis.com/auth/calendar.events");
+  const res = await FB.signInWithPopup(cloud.auth, p);
+  const cred = FB.GoogleAuthProvider.credentialFromResult(res);
+  if (cred && cred.accessToken) {
+    cloud.accessToken = cred.accessToken;
+    cloud.tokenAt = Date.now();
+    cloud.tokenHasCal = !!withCal;
+  }
+  return res.user;
+}
+
+async function createFamily() {
+  const FB = cloud.FB;
+  const id = randCode(8);
+  await FB.setDoc(FB.doc(cloud.db, "families", id), {
+    members: store.members,
+    tasks: store.tasks,
+    done: store.done,
+    overrides: store.overrides,
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
+  });
+  cloud.cfg.familyId = id;
+  saveCloudCfg();
+  subscribeFamily();
+}
+
+function inviteLink() {
+  return location.origin + location.pathname + "#join=" +
+    b64uEnc(JSON.stringify({ c: cloud.cfg.config, f: cloud.cfg.familyId }));
+}
+
+function claimMember(id) {
+  if (!cloud.user) return;
+  const m = store.members.find(x => x.id === id);
+  if (!m) return;
+  for (const x of store.members) {
+    if (x.uid === cloud.user.uid) { delete x.uid; delete x.gmail; delete x.photo; }
+  }
+  m.uid = cloud.user.uid;
+  m.gmail = cloud.user.email || "";
+  m.photo = cloud.user.photoURL || "";
+  save();
+}
+
+function claimNew() {
+  if (!cloud.user) return;
+  store.members.push({
+    id: uid(),
+    name: (cloud.user.displayName || "わたし").slice(0, 10),
+    color: COLORS[store.members.length % COLORS.length],
+    uid: cloud.user.uid,
+    gmail: cloud.user.email || "",
+    photo: cloud.user.photoURL || "",
+  });
+  save();
+}
+
+function parseConfigText(text) {
+  const s = text.indexOf("{"), e = text.lastIndexOf("}");
+  if (s < 0 || e <= s) throw new Error("設定（firebaseConfig）が見つかりません");
+  const body = text.slice(s, e + 1);
+  let obj;
+  try { obj = JSON.parse(body); }
+  catch (_) { obj = (new Function("return (" + body + ")"))(); }
+  if (!obj || !obj.apiKey || !obj.authDomain || !obj.projectId || !obj.appId) {
+    throw new Error("apiKey / authDomain / projectId / appId がそろっていません");
+  }
+  return obj;
+}
+
+function renderTodayBanner() {
+  const el = $("#today-banner");
+  if (!el) return;
+  if (cloud.cfg && cloud.cfg.config && cloud.ready && !cloud.user && !cloud.error) {
+    el.innerHTML = `<div class="banner"><span>Googleでログインすると、家族みんなで同じ当番表を使えます。</span><button data-act="signin">ログイン</button></div>`;
+  } else if (cloud.active && cloud.user && !myMember()) {
+    el.innerHTML = `<div class="banner"><span>あなたがどのメンバーか設定すると、自分の当番がひと目でわかります。</span><button data-act="goto-manage">設定へ</button></div>`;
+  } else {
+    el.innerHTML = "";
+  }
+}
+
+function renderCloud() {
+  const el = $("#cloud-card");
+  if (!el) return;
+  const off = `<button class="btn-danger" data-act="cloud-reset">この端末の共有設定を解除</button>`;
+  let html = `<h2>家族で共有（Google連携）</h2>`;
+
+  if (!cloud.cfg || !cloud.cfg.config) {
+    html += `
+      <p class="hint">家族それぞれのGoogleアカウントでログインすると、みんなで同じ当番表を共有でき、自分の当番だけを表示したり、Googleカレンダーで通知を受け取れます。</p>
+      <p class="hint">📨 <b>招待リンクをもらった人</b>は、そのリンクを開くだけで設定は不要です。</p>
+      <p class="hint">🔧 <b>最初のひとり</b>は、<a href="https://github.com/5newold111/Uni-talot/blob/main/README.md" target="_blank" rel="noopener">READMEの手順</a>で無料のFirebaseプロジェクトを作り、設定（firebaseConfig）を下に貼り付けてください。</p>
+      ${location.protocol === "file:" ? `<p class="hint">⚠️ 共有機能は、Webに公開したURL（https）で開いたときだけ使えます。</p>` : ""}
+      <button class="btn-accent" data-act="cloud-start">共有の設定をはじめる</button>
+      <div id="cloud-setup" style="display:none">
+        <textarea class="cfg" id="cloud-config" placeholder='const firebaseConfig = { apiKey: "...", authDomain: "...", ... }; をそのまま貼り付け'></textarea>
+        <div class="cloud-row"><button class="btn-add" data-act="cloud-save-config">保存</button></div>
+      </div>`;
+  } else if (!cloud.ready) {
+    html += `<p class="hint">読み込み中…</p>`;
+  } else if (cloud.error) {
+    html += `<p class="hint">⚠️ ${esc(cloud.error)}</p>
+      <div class="cloud-row"><button class="btn-plain" data-act="cloud-retry">再読み込み</button>${off}</div>`;
+  } else if (!cloud.user) {
+    html += `<p class="hint">${cloud.joined ? "招待リンクを読み込みました。" : ""}Googleでログインして、家族の当番表とつながりましょう。</p>
+      <div class="cloud-row"><button class="g-btn" data-act="signin"><span class="g">G</span> Googleでログイン</button>${off}</div>`;
+  } else if (!cloud.cfg.familyId) {
+    html += `<p class="hint">${esc(cloud.user.email || "")} でログイン中</p>
+      <p class="hint">家族グループを作ると、いま登録済みのメンバー・場所・実績をそのまま引き継いで共有をはじめられます。</p>
+      <div class="cloud-row"><button class="btn-accent" data-act="cloud-create">家族グループを作る</button><button class="btn-plain" data-act="cloud-logout">ログアウト</button>${off}</div>`;
+  } else if (!cloud.active) {
+    html += `<p class="hint">同期中…</p>`;
+  } else {
+    const me = myMember();
+    html += `<p class="hint">${esc(cloud.user.email || "")} でログイン中 ・ グループ: ${esc(cloud.cfg.familyId)}</p>`;
+    if (me) {
+      html += `<p class="hint">あなたのメンバー: <b>${esc(me.name)}</b></p>`;
+    } else {
+      const free = store.members.filter(m => !m.uid);
+      html += `<p class="hint">あなたはどのメンバーですか？</p>
+        <div class="chips">
+          ${free.map(m => `<button data-act="claim" data-id="${m.id}">${esc(m.name)}</button>`).join("")}
+          <button data-act="claim-new">＋ 自分を追加</button>
+        </div>`;
+    }
+    html += `<div class="cloud-row">
+        <button class="btn-accent" data-act="cloud-invite">招待リンクをコピー</button>
+        <button class="btn-plain" data-act="cloud-logout">ログアウト</button>${off}</div>
+      <p class="hint">招待リンクを家族に送ると、開いてGoogleでログインするだけで同じ当番表が使えます。リンクは家族以外に教えないでください。</p>`;
+  }
+  el.innerHTML = html;
+
+  const cal = $("#cal-card");
+  if (cal) {
+    cal.style.display = (cloud.active && cloud.user && myMember()) ? "" : "none";
+    const last = localStorage.getItem("toban-cal-last");
+    $("#cal-last").textContent = last ? "前回の登録: " + last : "";
+  }
+}
+
+async function cloudAction(act, btn) {
+  try {
+    switch (act) {
+      case "cloud-start": {
+        const p = $("#cloud-setup");
+        if (p) p.style.display = p.style.display === "none" ? "" : "none";
+        break;
+      }
+      case "cloud-save-config": {
+        const obj = parseConfigText($("#cloud-config").value);
+        cloud.cfg = { config: obj, familyId: null };
+        saveCloudCfg();
+        await cloudInit();
+        break;
+      }
+      case "cloud-retry": location.reload(); break;
+      case "signin": await signInGoogle(false); break;
+      case "cloud-create": btn.disabled = true; await createFamily(); break;
+      case "cloud-invite": {
+        const link = inviteLink();
+        try {
+          await navigator.clipboard.writeText(link);
+          alert("招待リンクをコピーしました。家族に送ってね。");
+        } catch (e) {
+          prompt("この招待リンクを家族に送ってね：", link);
+        }
+        break;
+      }
+      case "cloud-logout":
+        if (cloud.FB && cloud.auth) await cloud.FB.signOut(cloud.auth);
+        break;
+      case "cloud-reset":
+        if (confirm("この端末の共有設定を解除しますか？（家族のデータは消えません。この端末はローカルの記録に戻ります）")) {
+          unsubscribeFamily();
+          if (cloud.FB && cloud.auth) { try { await cloud.FB.signOut(cloud.auth); } catch (e) {} }
+          cloud.cfg = null; saveCloudCfg();
+          cloud.user = null; cloud.ready = false; cloud.error = null; cloud.joined = false;
+          store = load();
+          renderAll();
+        }
+        break;
+      case "claim": claimMember(btn.dataset.id); break;
+      case "claim-new": claimNew(); break;
+      case "goto-manage": showView("manage"); break;
+      case "mine-all": viewMine = false; renderToday(); break;
+      case "mine-only": viewMine = true; renderToday(); break;
+      case "cal-sync": await syncCalendar(); break;
+      case "cal-clear": await clearCalendar(); break;
+    }
+  } catch (e) {
+    if (e && (e.code === "auth/popup-closed-by-user" || e.code === "auth/cancelled-popup-request")) return;
+    alert("うまくいきませんでした：" + (e.message || e));
+  }
+}
+
+/* ---- Googleカレンダー通知 ---- */
+
+async function ensureCalToken() {
+  if (cloud.accessToken && cloud.tokenHasCal && Date.now() - cloud.tokenAt < 45 * 60 * 1000) {
+    return cloud.accessToken;
+  }
+  await signInGoogle(true);
+  if (!cloud.accessToken || !cloud.tokenHasCal) throw new Error("カレンダーへのアクセスを許可してください");
+  return cloud.accessToken;
+}
+
+async function calFetch(path, opts) {
+  const token = await ensureCalToken();
+  const res = await fetch("https://www.googleapis.com/calendar/v3" + path, Object.assign({}, opts, {
+    headers: Object.assign(
+      { "Authorization": "Bearer " + token, "Content-Type": "application/json" },
+      opts && opts.headers
+    ),
+  }));
+  if (res.status === 401 || res.status === 403) {
+    cloud.accessToken = null;
+    throw new Error("Googleの認証が切れたか、カレンダーの権限がありません。もう一度お試しください（" + res.status + "）");
+  }
+  if (!res.ok) throw new Error("カレンダーAPIエラー（" + res.status + "）");
+  if (res.status === 204) return null;
+  const text = await res.text();
+  return text ? JSON.parse(text) : null;
+}
+
+async function deleteAppEvents() {
+  const t = today();
+  const timeMin = encodeURIComponent(t.toISOString());
+  const timeMax = encodeURIComponent(addDays(t, 15).toISOString());
+  const list = await calFetch(`/calendars/primary/events?privateExtendedProperty=tobanApp%3D1&timeMin=${timeMin}&timeMax=${timeMax}&singleEvents=true&maxResults=100`);
+  for (const ev of ((list && list.items) || [])) {
+    await calFetch("/calendars/primary/events/" + ev.id, { method: "DELETE" });
+  }
+}
+
+async function syncCalendar() {
+  const me = myMember();
+  if (!me) { alert("先に「あなたのメンバー」を設定してください"); return; }
+  const hour = Number(($("#cal-hour") && $("#cal-hour").value) || 8);
+  const btn = $("#cal-sync");
+  btn.disabled = true; btn.textContent = "登録中…";
+  try {
+    await deleteAppEvents(); // 前回登録した分を消してから登録し直す（重複防止）
+    const t = today();
+    let count = 0;
+    for (let i = 0; i < 14; i++) {
+      const d = addDays(t, i);
+      const names = [];
+      for (const task of store.tasks) {
+        if (task.freq === "daily" && isMe(assignee(task, d))) names.push(task.name);
+        if (task.freq === "weekly" && d.getDay() === 6 && isMe(assignee(task, d))) names.push(task.name + "（今週分）");
+      }
+      if (!names.length) continue;
+      const start = new Date(d.getFullYear(), d.getMonth(), d.getDate(), hour, 0, 0);
+      const end = new Date(start.getTime() + 30 * 60 * 1000);
+      await calFetch("/calendars/primary/events", {
+        method: "POST",
+        body: JSON.stringify({
+          summary: "🧹 当番：" + names.join("・"),
+          description: "「おそうじ当番表」から自動登録",
+          start: { dateTime: start.toISOString() },
+          end: { dateTime: end.toISOString() },
+          reminders: { useDefault: false, overrides: [{ method: "popup", minutes: 0 }] },
+          extendedProperties: { private: { tobanApp: "1" } },
+        }),
+      });
+      count++;
+    }
+    localStorage.setItem("toban-cal-last", new Date().toLocaleString("ja-JP") + "（" + count + "日分）");
+    alert("Googleカレンダーに " + count + " 日分の当番を登録しました。");
+  } catch (e) {
+    alert("カレンダー登録に失敗しました：" + (e.message || e));
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "14日分を登録";
+    renderCloud();
+  }
+}
+
+async function clearCalendar() {
+  try {
+    await deleteAppEvents();
+    localStorage.removeItem("toban-cal-last");
+    alert("カレンダーから当番の予定を削除しました。");
+  } catch (e) {
+    alert("削除に失敗しました：" + (e.message || e));
+  }
+  renderCloud();
+}
+
+// テスト用の観測口（フェイクFirebase注入時のみ有効化）
+if (window.__tobanFakeFB) {
+  window.__tobanDbg = {
+    inviteLink: () => inviteLink(),
+    store: () => store,
+    cloud,
+  };
+}
+
 /* ---- 日付が変わったら表示を更新 ---- */
 let shownDay = dkey(today());
 setInterval(() => {
@@ -816,6 +1352,7 @@ document.addEventListener("visibilitychange", () => {
 });
 
 renderAll();
+cloudInit();
 </script>
 </body>
 </html>
