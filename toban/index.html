@@ -1,0 +1,1358 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>おそうじ当番表 ｜ 家庭の掃除当番をかんたん管理</title>
+  <meta name="description" content="家族の掃除当番を自動でローテーション。メンバーと掃除場所を登録するだけで、今日の当番・今週の当番が決まります。完了チェックと実績集計つき。">
+  <meta name="theme-color" content="#faf6ef">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%A7%B9%3C/text%3E%3C/svg%3E">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="当番表">
+  <style>
+:root {
+  --bg:        #faf6ef;
+  --card:      #ffffff;
+  --ink:       #3a3330;
+  --ink-dim:   #8a7f77;
+  --line:      #eadfd2;
+  --accent:    #e07a5f;
+  --accent-lo: #c96045;
+  --green:     #2a9d8f;
+  --green-bg:  #e3f2ef;
+  --nav-h:     62px;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+
+body {
+  font-family: "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic", "Noto Sans JP", sans-serif;
+  background: var(--bg);
+  color: var(--ink);
+  line-height: 1.6;
+  padding-bottom: calc(var(--nav-h) + env(safe-area-inset-bottom, 0px) + 16px);
+}
+
+header.app {
+  padding: 20px 18px 8px;
+  max-width: 680px;
+  margin: 0 auto;
+}
+header.app h1 {
+  font-size: 1.35rem;
+  letter-spacing: .04em;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+header.app .date {
+  color: var(--ink-dim);
+  font-size: .85rem;
+}
+
+main {
+  max-width: 680px;
+  margin: 0 auto;
+  padding: 8px 14px 24px;
+}
+
+section.view { display: none; }
+section.view.active { display: block; }
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 14px 16px;
+  margin-bottom: 14px;
+  box-shadow: 0 1px 3px rgba(60, 40, 20, .04);
+}
+.card h2 {
+  font-size: .95rem;
+  letter-spacing: .06em;
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.card h2 .sub { font-size: .75rem; color: var(--ink-dim); font-weight: normal; }
+
+.empty {
+  color: var(--ink-dim);
+  font-size: .88rem;
+  padding: 10px 2px;
+}
+.empty a { color: var(--accent); text-decoration: underline; cursor: pointer; }
+
+/* ---- 当番行 ---- */
+.duty {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 2px;
+  border-top: 1px dashed var(--line);
+}
+.duty:first-of-type { border-top: none; }
+.duty .task {
+  flex: 1;
+  min-width: 0;
+}
+.duty .task .name { font-weight: 600; font-size: .98rem; }
+.duty .task .meta { font-size: .74rem; color: var(--ink-dim); }
+.duty.is-done .task .name { text-decoration: line-through; color: var(--ink-dim); }
+
+.avatar {
+  width: 34px; height: 34px;
+  border-radius: 50%;
+  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: .9rem;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+.avatar.small { width: 24px; height: 24px; font-size: .7rem; }
+.avatar.none { background: #cfc6bc; }
+
+.who {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.who .wname {
+  font-size: .82rem;
+  max-width: 5.5em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+button {
+  font-family: inherit;
+  border: none;
+  cursor: pointer;
+  border-radius: 10px;
+  font-size: .82rem;
+}
+.btn-done {
+  background: #f2ece3;
+  color: var(--ink-dim);
+  padding: 8px 12px;
+  flex-shrink: 0;
+  min-width: 4.6em;
+}
+.btn-done.on {
+  background: var(--green-bg);
+  color: var(--green);
+  font-weight: 700;
+}
+.btn-swap {
+  background: none;
+  color: var(--ink-dim);
+  padding: 8px 6px;
+  font-size: .95rem;
+  flex-shrink: 0;
+}
+.btn-swap:hover { color: var(--accent); }
+
+.progress-note {
+  font-size: .8rem;
+  color: var(--ink-dim);
+  margin: -4px 2px 10px;
+}
+.progress-note strong { color: var(--green); }
+
+/* ---- タブ ---- */
+nav.tabs {
+  position: fixed;
+  left: 0; right: 0; bottom: 0;
+  background: var(--card);
+  border-top: 1px solid var(--line);
+  display: flex;
+  justify-content: space-around;
+  padding: 6px 4px calc(6px + env(safe-area-inset-bottom, 0px));
+  z-index: 10;
+}
+nav.tabs button {
+  background: none;
+  color: var(--ink-dim);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  font-size: .68rem;
+  padding: 4px 12px;
+  border-radius: 10px;
+}
+nav.tabs button .ico { font-size: 1.25rem; line-height: 1.2; }
+nav.tabs button.active { color: var(--accent); font-weight: 700; }
+
+/* ---- 予定表 ---- */
+.table-wrap { overflow-x: auto; }
+table.sched {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: .8rem;
+}
+table.sched th, table.sched td {
+  border: 1px solid var(--line);
+  padding: 6px 8px;
+  text-align: center;
+  white-space: nowrap;
+}
+table.sched th { background: #f6efe5; font-weight: 600; }
+table.sched td.taskcol, table.sched th.taskcol {
+  text-align: left;
+  position: sticky;
+  left: 0;
+  background: var(--card);
+  font-weight: 600;
+}
+table.sched th.taskcol { background: #f6efe5; }
+table.sched td.today-col { background: #fdf3ee; }
+table.sched .cellwho {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* ---- 設定 ---- */
+.form-row {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+input[type="text"], select {
+  font-family: inherit;
+  font-size: .9rem;
+  padding: 9px 10px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #fdfbf7;
+  color: var(--ink);
+  min-width: 0;
+}
+input[type="text"] { flex: 1; }
+.btn-add {
+  background: var(--accent);
+  color: #fff;
+  padding: 9px 16px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+.btn-add:active { background: var(--accent-lo); }
+
+ul.plain { list-style: none; }
+ul.plain li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 2px;
+  border-top: 1px dashed var(--line);
+}
+ul.plain li:first-child { border-top: none; }
+ul.plain .grow { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.badge {
+  font-size: .68rem;
+  background: #f2ece3;
+  color: var(--ink-dim);
+  border-radius: 999px;
+  padding: 2px 8px;
+  flex-shrink: 0;
+}
+.icon-btn {
+  background: none;
+  color: var(--ink-dim);
+  font-size: .95rem;
+  padding: 6px;
+}
+.icon-btn:hover { color: var(--accent); }
+.icon-btn:disabled { opacity: .25; cursor: default; }
+
+.chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.chips button {
+  background: #f6efe5;
+  color: var(--ink);
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: .8rem;
+}
+.chips button:hover { background: #efe4d3; }
+
+.hint { font-size: .76rem; color: var(--ink-dim); margin-top: 8px; }
+
+/* ---- 実績 ---- */
+.rank {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 2px;
+  border-top: 1px dashed var(--line);
+}
+.rank:first-of-type { border-top: none; }
+.rank .pos { width: 1.6em; text-align: center; font-weight: 700; color: var(--ink-dim); }
+.rank .grow { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+.rank .nums { font-size: .8rem; color: var(--ink-dim); text-align: right; }
+.rank .nums b { color: var(--ink); font-size: 1rem; }
+
+.backup-btns { display: flex; gap: 8px; margin-top: 4px; }
+.backup-btns button {
+  background: #f2ece3;
+  color: var(--ink);
+  padding: 8px 14px;
+}
+
+/* ---- 家族共有（Google連携） ---- */
+.banner {
+  background: #fdf3ee;
+  border: 1px solid #f2d9cd;
+  border-radius: 12px;
+  padding: 10px 14px;
+  font-size: .85rem;
+  margin-bottom: 12px;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  justify-content: space-between;
+}
+.banner button { background: var(--accent); color: #fff; padding: 7px 14px; flex-shrink: 0; font-weight: 700; }
+.duty.mine { background: #fdf3ee; border-radius: 10px; padding-left: 8px; padding-right: 6px; }
+.badge.you { background: var(--accent); color: #fff; }
+.badge.linked { background: var(--green-bg); color: var(--green); }
+.chips.seg { margin: 0 2px 12px; }
+.chips.seg button.on { background: var(--accent); color: #fff; font-weight: 700; }
+.cloud-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+.g-btn {
+  background: #fff;
+  border: 1px solid var(--line);
+  color: var(--ink);
+  padding: 9px 16px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.g-btn .g { color: #4285f4; font-weight: 900; font-family: Arial, sans-serif; }
+.btn-plain { background: #f2ece3; color: var(--ink); padding: 8px 14px; }
+.btn-danger { background: none; color: #b0433a; padding: 8px 4px; font-size: .74rem; text-decoration: underline; }
+.btn-accent { background: var(--accent); color: #fff; padding: 9px 16px; font-weight: 700; }
+textarea.cfg {
+  width: 100%;
+  min-height: 96px;
+  font-family: ui-monospace, monospace;
+  font-size: .72rem;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #fdfbf7;
+  padding: 8px;
+  margin-top: 8px;
+}
+.avatar img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; display: block; }
+.cal-note { font-size: .76rem; color: var(--ink-dim); margin-top: 6px; }
+select#cal-hour { margin-left: 4px; }
+
+@media (min-width: 700px) {
+  body { padding-bottom: 24px; }
+  nav.tabs {
+    position: static;
+    max-width: 680px;
+    margin: 0 auto 4px;
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 6px;
+  }
+}
+  </style>
+</head>
+<body>
+
+<header class="app">
+  <h1>🧹 おそうじ当番表</h1>
+  <div class="date" id="today-date"></div>
+</header>
+
+<nav class="tabs">
+  <button data-view="today" class="active"><span class="ico">🏠</span>今日</button>
+  <button data-view="sched"><span class="ico">🗓️</span>予定表</button>
+  <button data-view="stats"><span class="ico">🏆</span>実績</button>
+  <button data-view="manage"><span class="ico">⚙️</span>設定</button>
+</nav>
+
+<main>
+  <!-- 今日 -->
+  <section class="view active" id="view-today">
+    <div id="today-banner"></div>
+    <div class="chips seg" id="mine-filter" style="display:none"></div>
+    <div class="card">
+      <h2>今日の当番 <span class="sub">毎日交代</span></h2>
+      <div class="progress-note" id="today-progress"></div>
+      <div id="today-list"></div>
+    </div>
+    <div class="card">
+      <h2>今週の当番 <span class="sub" id="week-range"></span></h2>
+      <div id="week-list"></div>
+    </div>
+  </section>
+
+  <!-- 予定表 -->
+  <section class="view" id="view-sched">
+    <div class="card">
+      <h2>毎日の当番（これから7日間）</h2>
+      <div class="table-wrap" id="sched-daily"></div>
+    </div>
+    <div class="card">
+      <h2>週ごとの当番（これから4週間）</h2>
+      <div class="table-wrap" id="sched-weekly"></div>
+    </div>
+    <p class="hint">当番は登録順に自動でローテーションします。設定でメンバーの並び順を変えると当番も入れ替わります。</p>
+  </section>
+
+  <!-- 実績 -->
+  <section class="view" id="view-stats">
+    <div class="card">
+      <h2>がんばりランキング <span class="sub" id="stats-month-label"></span></h2>
+      <div id="stats-list"></div>
+    </div>
+  </section>
+
+  <!-- 設定 -->
+  <section class="view" id="view-manage">
+    <div class="card" id="cloud-card"></div>
+
+    <div class="card" id="cal-card" style="display:none">
+      <h2>Googleカレンダーで通知</h2>
+      <div class="cloud-row">
+        <label style="font-size:.85rem">通知時刻
+          <select id="cal-hour">
+            <option value="7">7:00</option>
+            <option value="8" selected>8:00</option>
+            <option value="9">9:00</option>
+            <option value="10">10:00</option>
+            <option value="12">12:00</option>
+            <option value="17">17:00</option>
+            <option value="18">18:00</option>
+            <option value="19">19:00</option>
+            <option value="20">20:00</option>
+          </select>
+        </label>
+        <button class="btn-accent" data-act="cal-sync" id="cal-sync">14日分を登録</button>
+        <button class="btn-plain" data-act="cal-clear">登録を解除</button>
+      </div>
+      <p class="cal-note">あなたの当番の日に、あなたのGoogleカレンダーへ予定と通知を登録します（週1回の当番は土曜日にまとめて通知）。当番や設定を変えたら、もう一度「登録」を押すと新しい内容に更新されます。</p>
+      <p class="cal-note" id="cal-last"></p>
+    </div>
+
+    <div class="card">
+      <h2>メンバー <span class="sub">並び順＝当番の順番</span></h2>
+      <ul class="plain" id="member-list"></ul>
+      <div class="form-row">
+        <input type="text" id="member-name" placeholder="なまえ（例：ママ）" maxlength="10">
+        <button class="btn-add" id="member-add">追加</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>掃除場所</h2>
+      <ul class="plain" id="task-list"></ul>
+      <div class="form-row">
+        <input type="text" id="task-name" placeholder="場所（例：おふろ）" maxlength="14">
+        <select id="task-freq">
+          <option value="daily">毎日</option>
+          <option value="weekly">週1回</option>
+        </select>
+        <button class="btn-add" id="task-add">追加</button>
+      </div>
+      <div class="chips" id="task-chips"></div>
+    </div>
+
+    <div class="card">
+      <h2>データのバックアップ</h2>
+      <div class="backup-btns">
+        <button id="backup-export">書き出す（コピー）</button>
+        <button id="backup-import">取り込む</button>
+      </div>
+      <p class="hint">データはこの端末のブラウザに保存されます。機種変更や家族の端末と合わせたいときは、書き出したデータを貼り付けて取り込んでください。</p>
+    </div>
+  </section>
+</main>
+
+<script>
+"use strict";
+
+/* ================= データ ================= */
+
+const STORE_KEY = "toban-state-v1";
+const COLORS = ["#e07a5f", "#3d8bfd", "#2a9d8f", "#e9b93a", "#9b5de5", "#f15bb5", "#00a6c4", "#7cb518"];
+const SUGGEST_TASKS = [
+  ["おふろ", "daily"], ["トイレ", "daily"], ["食器あらい", "daily"], ["ゴミ出し", "daily"],
+  ["そうじ機がけ", "weekly"], ["キッチン", "weekly"], ["洗面所", "weekly"], ["げんかん", "weekly"]
+];
+
+let store = load();
+
+function load() {
+  try {
+    const raw = localStorage.getItem(STORE_KEY);
+    if (raw) {
+      const s = JSON.parse(raw);
+      if (s && Array.isArray(s.members) && Array.isArray(s.tasks)) {
+        s.done = s.done || {};
+        s.overrides = s.overrides || {};
+        return s;
+      }
+    }
+  } catch (e) { /* 壊れたデータは初期化 */ }
+  return { members: [], tasks: [], done: {}, overrides: {} };
+}
+
+function save() {
+  if (cloud.active) cloudSave();
+  else localStorage.setItem(STORE_KEY, JSON.stringify(store));
+  renderAll();
+}
+
+function uid() {
+  return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+}
+
+/* ================= 日付 ================= */
+
+const WD = ["日", "月", "火", "水", "木", "金", "土"];
+
+function today() {
+  const n = new Date();
+  return new Date(n.getFullYear(), n.getMonth(), n.getDate());
+}
+function addDays(d, n) {
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate() + n);
+}
+// 1970-01-01からの通算日（ローカル日付基準・夏時間の影響なし）
+function dayNumber(d) {
+  return Math.round(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) / 86400000);
+}
+// 月曜はじまりの週番号
+function weekIndex(d) {
+  return Math.floor((dayNumber(d) - 4) / 7); // 1970-01-05(月) を基準
+}
+function weekStart(d) {
+  return addDays(d, -((d.getDay() + 6) % 7));
+}
+function dkey(d) {
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  return `${d.getFullYear()}-${mm}-${dd}`;
+}
+function fmtMD(d) { return `${d.getMonth() + 1}/${d.getDate()}`; }
+
+function periodKey(task, d) {
+  return task.freq === "daily" ? dkey(d) : dkey(weekStart(d));
+}
+function periodLabel(task) {
+  return task.freq === "daily" ? "毎日" : "週1回";
+}
+
+/* ================= 当番の計算 ================= */
+
+function assignee(task, d) {
+  const n = store.members.length;
+  if (n === 0) return null;
+  const ov = store.overrides[task.id + ":" + periodKey(task, d)];
+  if (ov) {
+    const m = store.members.find(m => m.id === ov);
+    if (m) return m;
+  }
+  const idx = task.freq === "daily" ? dayNumber(d) : weekIndex(d);
+  return store.members[(((idx + task.offset) % n) + n) % n];
+}
+
+function swapAssignee(task, d) {
+  const cur = assignee(task, d);
+  if (!cur || store.members.length < 2) return;
+  const i = store.members.findIndex(m => m.id === cur.id);
+  store.overrides[task.id + ":" + periodKey(task, d)] = store.members[(i + 1) % store.members.length].id;
+  save();
+}
+
+function toggleDone(task, d) {
+  const k = task.id + ":" + periodKey(task, d);
+  if (store.done[k]) {
+    delete store.done[k];
+  } else {
+    const a = assignee(task, d);
+    store.done[k] = { member: a ? a.id : null, at: Date.now(), task: task.name };
+  }
+  save();
+}
+
+/* ================= 描画 ================= */
+
+const $ = sel => document.querySelector(sel);
+function esc(s) {
+  return String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+function avatarHtml(m, small) {
+  const cls = "avatar" + (small ? " small" : "");
+  if (!m) return `<span class="${cls} none">？</span>`;
+  if (m.photo) return `<span class="${cls}"><img src="${esc(m.photo)}" alt="" referrerpolicy="no-referrer"></span>`;
+  return `<span class="${cls}" style="background:${m.color}">${esc(m.name.slice(0, 1))}</span>`;
+}
+
+function renderAll() {
+  renderToday();
+  renderSched();
+  renderStats();
+  renderManage();
+  renderCloud();
+}
+
+function noDataHtml() {
+  if (store.members.length === 0) {
+    return `<div class="empty">まずは<a data-go="manage">設定</a>で家族のメンバーを登録してね。</div>`;
+  }
+  return `<div class="empty"><a data-go="manage">設定</a>で掃除場所を登録すると、当番が自動で決まります。</div>`;
+}
+
+function dutyRowHtml(task, d) {
+  const a = assignee(task, d);
+  const done = !!store.done[task.id + ":" + periodKey(task, d)];
+  return `
+    <div class="duty${done ? " is-done" : ""}${isMe(a) ? " mine" : ""}">
+      <div class="task">
+        <div class="name">${esc(task.name)}</div>
+        <div class="meta">${periodLabel(task)}</div>
+      </div>
+      <div class="who">${avatarHtml(a)}<span class="wname">${a ? esc(a.name) : "未登録"}</span></div>
+      <button class="btn-swap" title="次の人と交代" data-swap="${task.id}" data-date="${dkey(d)}">⇄</button>
+      <button class="btn-done${done ? " on" : ""}" data-done="${task.id}" data-date="${dkey(d)}">${done ? "✓ 完了" : "未完了"}</button>
+    </div>`;
+}
+
+function renderToday() {
+  const t = today();
+  $("#today-date").textContent = `${t.getFullYear()}年${t.getMonth() + 1}月${t.getDate()}日（${WD[t.getDay()]}）`;
+  renderTodayBanner();
+
+  const me = myMember();
+  const filterEl = $("#mine-filter");
+  if (me) {
+    filterEl.style.display = "";
+    filterEl.innerHTML =
+      `<button class="${viewMine ? "" : "on"}" data-act="mine-all">みんな</button>` +
+      `<button class="${viewMine ? "on" : ""}" data-act="mine-only">自分だけ</button>`;
+  } else {
+    filterEl.style.display = "none";
+  }
+
+  const ws = weekStart(t);
+  $("#week-range").textContent = `${fmtMD(ws)}〜${fmtMD(addDays(ws, 6))}`;
+
+  if (store.members.length === 0 || store.tasks.length === 0) {
+    $("#today-list").innerHTML = noDataHtml();
+    $("#week-list").innerHTML = "";
+    $("#today-progress").textContent = "";
+    return;
+  }
+
+  const mineOnly = !!(me && viewMine);
+  const daily = store.tasks.filter(x => x.freq === "daily" && (!mineOnly || isMe(assignee(x, t))));
+  const weekly = store.tasks.filter(x => x.freq === "weekly" && (!mineOnly || isMe(assignee(x, t))));
+
+  $("#today-list").innerHTML = daily.length
+    ? daily.map(x => dutyRowHtml(x, t)).join("")
+    : `<div class="empty">${mineOnly ? "今日のあなたの当番はありません 🎉" : "「毎日」の掃除場所はまだありません。"}</div>`;
+  $("#week-list").innerHTML = weekly.length
+    ? weekly.map(x => dutyRowHtml(x, t)).join("")
+    : `<div class="empty">${mineOnly ? "今週のあなたの当番はありません 🎉" : "「週1回」の掃除場所はまだありません。"}</div>`;
+
+  const all = [...daily, ...weekly];
+  const doneCount = all.filter(x => store.done[x.id + ":" + periodKey(x, t)]).length;
+  $("#today-progress").innerHTML = all.length
+    ? (doneCount === all.length
+        ? `<strong>ぜんぶ完了！おつかれさま 🎉</strong>`
+        : `${all.length}件中 <strong>${doneCount}件</strong> 完了`)
+    : "";
+}
+
+function renderSched() {
+  const t = today();
+  const daily = store.tasks.filter(x => x.freq === "daily");
+  const weekly = store.tasks.filter(x => x.freq === "weekly");
+
+  if (store.members.length === 0 || store.tasks.length === 0) {
+    $("#sched-daily").innerHTML = noDataHtml();
+    $("#sched-weekly").innerHTML = "";
+    return;
+  }
+
+  if (daily.length === 0) {
+    $("#sched-daily").innerHTML = `<div class="empty">「毎日」の掃除場所はまだありません。</div>`;
+  } else {
+    const days = Array.from({ length: 7 }, (_, i) => addDays(t, i));
+    let html = `<table class="sched"><tr><th class="taskcol">場所</th>`;
+    html += days.map(d => `<th>${fmtMD(d)}<br>（${WD[d.getDay()]}）</th>`).join("") + "</tr>";
+    for (const task of daily) {
+      html += `<tr><td class="taskcol">${esc(task.name)}</td>`;
+      html += days.map((d, i) => {
+        const a = assignee(task, d);
+        return `<td class="${i === 0 ? "today-col" : ""}"><span class="cellwho">${avatarHtml(a, true)}${a ? esc(a.name) : "－"}</span></td>`;
+      }).join("");
+      html += "</tr>";
+    }
+    $("#sched-daily").innerHTML = html + "</table>";
+  }
+
+  if (weekly.length === 0) {
+    $("#sched-weekly").innerHTML = `<div class="empty">「週1回」の掃除場所はまだありません。</div>`;
+  } else {
+    const weeks = Array.from({ length: 4 }, (_, i) => addDays(weekStart(t), i * 7));
+    let html = `<table class="sched"><tr><th class="taskcol">場所</th>`;
+    html += weeks.map((w, i) => `<th>${i === 0 ? "今週" : fmtMD(w) + "〜"}</th>`).join("") + "</tr>";
+    for (const task of weekly) {
+      html += `<tr><td class="taskcol">${esc(task.name)}</td>`;
+      html += weeks.map((w, i) => {
+        const a = assignee(task, w);
+        return `<td class="${i === 0 ? "today-col" : ""}"><span class="cellwho">${avatarHtml(a, true)}${a ? esc(a.name) : "－"}</span></td>`;
+      }).join("");
+      html += "</tr>";
+    }
+    $("#sched-weekly").innerHTML = html + "</table>";
+  }
+}
+
+function renderStats() {
+  const now = new Date();
+  $("#stats-month-label").textContent = `${now.getMonth() + 1}月`;
+
+  if (store.members.length === 0) {
+    $("#stats-list").innerHTML = noDataHtml();
+    return;
+  }
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
+  const byMember = new Map(store.members.map(m => [m.id, { m, month: 0, total: 0 }]));
+  for (const rec of Object.values(store.done)) {
+    const row = byMember.get(rec.member);
+    if (!row) continue;
+    row.total++;
+    if (rec.at >= monthStart) row.month++;
+  }
+  const rows = [...byMember.values()].sort((a, b) => b.month - a.month || b.total - a.total);
+  const medal = ["🥇", "🥈", "🥉"];
+  $("#stats-list").innerHTML = rows.map((r, i) => `
+    <div class="rank">
+      <span class="pos">${r.month > 0 && medal[i] ? medal[i] : i + 1}</span>
+      ${avatarHtml(r.m)}
+      <span class="grow">${esc(r.m.name)}</span>
+      <span class="nums">今月 <b>${r.month}</b> 回<br>これまで ${r.total} 回</span>
+    </div>`).join("") || `<div class="empty">まだ記録がありません。</div>`;
+}
+
+function renderManage() {
+  // メンバー
+  $("#member-list").innerHTML = store.members.map((m, i) => `
+    <li>
+      ${avatarHtml(m)}
+      <span class="grow">${esc(m.name)}${m.uid ? (isMe(m) ? ` <span class="badge you">あなた</span>` : ` <span class="badge linked">連携済</span>`) : ""}</span>
+      <button class="icon-btn" data-mup="${m.id}" ${i === 0 ? "disabled" : ""} title="上へ">▲</button>
+      <button class="icon-btn" data-mdown="${m.id}" ${i === store.members.length - 1 ? "disabled" : ""} title="下へ">▼</button>
+      <button class="icon-btn" data-mdel="${m.id}" title="削除">✕</button>
+    </li>`).join("") || `<div class="empty">メンバーはまだいません。下から追加してね。</div>`;
+
+  // 掃除場所
+  $("#task-list").innerHTML = store.tasks.map(x => `
+    <li>
+      <span class="grow">${esc(x.name)}</span>
+      <span class="badge">${periodLabel(x)}</span>
+      <button class="icon-btn" data-tdel="${x.id}" title="削除">✕</button>
+    </li>`).join("") || `<div class="empty">掃除場所はまだありません。下から追加してね。</div>`;
+
+  // 候補チップ（未登録のものだけ）
+  const names = new Set(store.tasks.map(x => x.name));
+  $("#task-chips").innerHTML = SUGGEST_TASKS
+    .filter(([name]) => !names.has(name))
+    .map(([name, freq]) => `<button data-chip="${esc(name)}" data-freq="${freq}">＋ ${esc(name)}</button>`)
+    .join("");
+}
+
+/* ================= 操作 ================= */
+
+function addMember() {
+  const input = $("#member-name");
+  const name = input.value.trim();
+  if (!name) return;
+  store.members.push({ id: uid(), name, color: COLORS[store.members.length % COLORS.length] });
+  input.value = "";
+  save();
+}
+
+function addTask(name, freq) {
+  name = name.trim();
+  if (!name) return;
+  // offset で場所ごとに担当をずらし、同じ日に同じ人へ集中しないようにする
+  store.tasks.push({ id: uid(), name, freq, offset: store.tasks.length });
+  save();
+}
+
+function showView(id) {
+  document.querySelectorAll("section.view").forEach(v => v.classList.toggle("active", v.id === "view-" + id));
+  document.querySelectorAll("nav.tabs button").forEach(b => b.classList.toggle("active", b.dataset.view === id));
+  window.scrollTo(0, 0);
+}
+
+document.querySelector("nav.tabs").addEventListener("click", e => {
+  const b = e.target.closest("button[data-view]");
+  if (b) showView(b.dataset.view);
+});
+
+document.body.addEventListener("click", e => {
+  const act = e.target.closest("[data-act]");
+  if (act) { cloudAction(act.dataset.act, act); return; }
+
+  const go = e.target.closest("[data-go]");
+  if (go) { showView(go.dataset.go); return; }
+
+  const doneBtn = e.target.closest("[data-done]");
+  if (doneBtn) {
+    const task = store.tasks.find(x => x.id === doneBtn.dataset.done);
+    if (task) toggleDone(task, parseDate(doneBtn.dataset.date));
+    return;
+  }
+  const swapBtn = e.target.closest("[data-swap]");
+  if (swapBtn) {
+    const task = store.tasks.find(x => x.id === swapBtn.dataset.swap);
+    if (task) swapAssignee(task, parseDate(swapBtn.dataset.date));
+    return;
+  }
+  const mdel = e.target.closest("[data-mdel]");
+  if (mdel) {
+    const m = store.members.find(x => x.id === mdel.dataset.mdel);
+    if (m && confirm(`「${m.name}」を削除しますか？`)) {
+      store.members = store.members.filter(x => x.id !== m.id);
+      save();
+    }
+    return;
+  }
+  const mup = e.target.closest("[data-mup]");
+  if (mup) { moveMember(mup.dataset.mup, -1); return; }
+  const mdown = e.target.closest("[data-mdown]");
+  if (mdown) { moveMember(mdown.dataset.mdown, 1); return; }
+
+  const tdel = e.target.closest("[data-tdel]");
+  if (tdel) {
+    const x = store.tasks.find(t => t.id === tdel.dataset.tdel);
+    if (x && confirm(`「${x.name}」を削除しますか？（実績は残ります）`)) {
+      store.tasks = store.tasks.filter(t => t.id !== x.id);
+      save();
+    }
+    return;
+  }
+  const chip = e.target.closest("[data-chip]");
+  if (chip) addTask(chip.dataset.chip, chip.dataset.freq);
+});
+
+function parseDate(s) {
+  const [y, m, d] = s.split("-").map(Number);
+  return new Date(y, m - 1, d);
+}
+
+function moveMember(id, dir) {
+  const i = store.members.findIndex(m => m.id === id);
+  const j = i + dir;
+  if (i < 0 || j < 0 || j >= store.members.length) return;
+  [store.members[i], store.members[j]] = [store.members[j], store.members[i]];
+  save();
+}
+
+$("#member-add").addEventListener("click", addMember);
+$("#member-name").addEventListener("keydown", e => { if (e.key === "Enter") addMember(); });
+$("#task-add").addEventListener("click", () => {
+  addTask($("#task-name").value, $("#task-freq").value);
+  $("#task-name").value = "";
+});
+$("#task-name").addEventListener("keydown", e => {
+  if (e.key === "Enter") { addTask(e.target.value, $("#task-freq").value); e.target.value = ""; }
+});
+
+/* ---- バックアップ ---- */
+$("#backup-export").addEventListener("click", async () => {
+  const json = JSON.stringify(store);
+  try {
+    await navigator.clipboard.writeText(json);
+    alert("データをコピーしました。メモアプリなどに貼り付けて保存してください。");
+  } catch (e) {
+    prompt("このデータをコピーして保存してください：", json);
+  }
+});
+$("#backup-import").addEventListener("click", () => {
+  const raw = prompt("書き出したデータを貼り付けてください（今のデータは上書きされます）：");
+  if (!raw) return;
+  try {
+    const s = JSON.parse(raw);
+    if (!s || !Array.isArray(s.members) || !Array.isArray(s.tasks)) throw new Error("形式が違います");
+    s.done = s.done || {};
+    s.overrides = s.overrides || {};
+    store = s;
+    save();
+    alert("取り込みました。");
+  } catch (e) {
+    alert("取り込めませんでした。データの形式を確認してください。");
+  }
+});
+
+/* ================= 家族共有（Google連携） ================= */
+/*
+ * Firebase Authentication（Googleログイン）＋ Firestore で家族の当番表を共有する。
+ * 設定（firebaseConfig）が保存されていない間は一切読み込まず、従来どおりのローカル動作。
+ * 通知はサーバー不要の方式として、本人の Google カレンダーに当番予定を登録して行う。
+ */
+
+const CLOUD_KEY = "toban-cloud-v1";
+const cloud = {
+  cfg: null,          // { config: firebaseConfig, familyId: 招待コード }
+  FB: null, auth: null, db: null,
+  user: null,
+  active: false,      // 家族ドキュメントを購読中
+  unsub: null,
+  ready: false,       // 認証状態の初回判定が済んだ
+  error: null,
+  joined: false,      // 招待リンク経由で設定された
+  accessToken: null, tokenAt: 0, tokenHasCal: false,
+};
+let viewMine = false;
+
+function myMember() {
+  return cloud.user ? store.members.find(m => m.uid === cloud.user.uid) : null;
+}
+function isMe(m) {
+  return !!(m && cloud.user && m.uid === cloud.user.uid);
+}
+
+function b64uEnc(s) { return btoa(unescape(encodeURIComponent(s))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, ""); }
+function b64uDec(s) { return decodeURIComponent(escape(atob(s.replace(/-/g, "+").replace(/_/g, "/")))); }
+function randCode(n) {
+  const chars = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
+  let out = "";
+  for (let i = 0; i < n; i++) out += chars[Math.floor(Math.random() * chars.length)];
+  return out;
+}
+
+function saveCloudCfg() {
+  if (cloud.cfg) localStorage.setItem(CLOUD_KEY, JSON.stringify(cloud.cfg));
+  else localStorage.removeItem(CLOUD_KEY);
+}
+
+async function loadFB() {
+  if (window.__tobanFakeFB) return window.__tobanFakeFB; // テスト用差し替え口
+  const v = "10.12.2";
+  const [a, b, c] = await Promise.all([
+    import(`https://www.gstatic.com/firebasejs/${v}/firebase-app.js`),
+    import(`https://www.gstatic.com/firebasejs/${v}/firebase-auth.js`),
+    import(`https://www.gstatic.com/firebasejs/${v}/firebase-firestore.js`),
+  ]);
+  return Object.assign({}, a, b, c);
+}
+
+function handleInviteHash() {
+  const m = location.hash.match(/[#&]join=([A-Za-z0-9_-]+)/);
+  if (!m) return;
+  try {
+    const j = JSON.parse(b64uDec(m[1]));
+    if (j && j.c && j.c.apiKey && j.f) {
+      cloud.cfg = { config: j.c, familyId: j.f };
+      saveCloudCfg();
+      cloud.joined = true;
+      showView("manage");
+    }
+  } catch (e) {
+    alert("招待リンクを読み取れませんでした。リンクが途中で切れていないか確認してください。");
+  }
+  history.replaceState(null, "", location.pathname + location.search);
+}
+
+async function cloudInit() {
+  try {
+    const raw = localStorage.getItem(CLOUD_KEY);
+    if (raw) cloud.cfg = JSON.parse(raw);
+  } catch (e) { /* 壊れた設定は無視 */ }
+  handleInviteHash();
+  if (!cloud.cfg || !cloud.cfg.config) { renderCloud(); return; }
+  try {
+    const FB = cloud.FB = await loadFB();
+    const app = FB.initializeApp(cloud.cfg.config);
+    cloud.auth = FB.getAuth(app);
+    cloud.db = FB.getFirestore(app);
+    FB.onAuthStateChanged(cloud.auth, u => {
+      cloud.user = u;
+      cloud.ready = true;
+      if (u && cloud.cfg.familyId) {
+        subscribeFamily();
+      } else {
+        unsubscribeFamily();
+        store = load();  // ログアウト中はこの端末のローカルデータに戻す
+        renderAll();
+      }
+    });
+  } catch (e) {
+    cloud.ready = true;
+    cloud.error = "共有機能を読み込めませんでした（" + (e.message || e) + "）";
+    renderAll();
+  }
+}
+
+function unsubscribeFamily() {
+  if (cloud.unsub) { cloud.unsub(); cloud.unsub = null; }
+  cloud.active = false;
+}
+
+function subscribeFamily() {
+  unsubscribeFamily();
+  const FB = cloud.FB;
+  cloud.unsub = FB.onSnapshot(FB.doc(cloud.db, "families", cloud.cfg.familyId), snap => {
+    if (snap.exists()) {
+      const d = snap.data();
+      store = { members: d.members || [], tasks: d.tasks || [], done: d.done || {}, overrides: d.overrides || {} };
+      cloud.active = true;
+      cloud.error = null;
+    } else {
+      cloud.active = false;
+      cloud.error = "家族グループが見つかりませんでした。招待リンクをもう一度確認してください。";
+    }
+    renderAll();
+  }, err => {
+    cloud.active = false;
+    cloud.error = "同期できませんでした（" + (err.code || err.message) + "）。ログインし直すか、Firestoreのルール設定を確認してください。";
+    renderAll();
+  });
+}
+
+function cloudSave() {
+  const FB = cloud.FB;
+  FB.setDoc(FB.doc(cloud.db, "families", cloud.cfg.familyId), {
+    members: store.members,
+    tasks: store.tasks,
+    done: store.done,
+    overrides: store.overrides,
+    updatedAt: Date.now(),
+  }).catch(e => alert("保存できませんでした：" + (e.message || e)));
+}
+
+async function signInGoogle(withCal) {
+  const FB = cloud.FB;
+  const p = new FB.GoogleAuthProvider();
+  if (withCal) p.addScope("https://www.googleapis.com/auth/calendar.events");
+  const res = await FB.signInWithPopup(cloud.auth, p);
+  const cred = FB.GoogleAuthProvider.credentialFromResult(res);
+  if (cred && cred.accessToken) {
+    cloud.accessToken = cred.accessToken;
+    cloud.tokenAt = Date.now();
+    cloud.tokenHasCal = !!withCal;
+  }
+  return res.user;
+}
+
+async function createFamily() {
+  const FB = cloud.FB;
+  const id = randCode(8);
+  await FB.setDoc(FB.doc(cloud.db, "families", id), {
+    members: store.members,
+    tasks: store.tasks,
+    done: store.done,
+    overrides: store.overrides,
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
+  });
+  cloud.cfg.familyId = id;
+  saveCloudCfg();
+  subscribeFamily();
+}
+
+function inviteLink() {
+  return location.origin + location.pathname + "#join=" +
+    b64uEnc(JSON.stringify({ c: cloud.cfg.config, f: cloud.cfg.familyId }));
+}
+
+function claimMember(id) {
+  if (!cloud.user) return;
+  const m = store.members.find(x => x.id === id);
+  if (!m) return;
+  for (const x of store.members) {
+    if (x.uid === cloud.user.uid) { delete x.uid; delete x.gmail; delete x.photo; }
+  }
+  m.uid = cloud.user.uid;
+  m.gmail = cloud.user.email || "";
+  m.photo = cloud.user.photoURL || "";
+  save();
+}
+
+function claimNew() {
+  if (!cloud.user) return;
+  store.members.push({
+    id: uid(),
+    name: (cloud.user.displayName || "わたし").slice(0, 10),
+    color: COLORS[store.members.length % COLORS.length],
+    uid: cloud.user.uid,
+    gmail: cloud.user.email || "",
+    photo: cloud.user.photoURL || "",
+  });
+  save();
+}
+
+function parseConfigText(text) {
+  const s = text.indexOf("{"), e = text.lastIndexOf("}");
+  if (s < 0 || e <= s) throw new Error("設定（firebaseConfig）が見つかりません");
+  const body = text.slice(s, e + 1);
+  let obj;
+  try { obj = JSON.parse(body); }
+  catch (_) { obj = (new Function("return (" + body + ")"))(); }
+  if (!obj || !obj.apiKey || !obj.authDomain || !obj.projectId || !obj.appId) {
+    throw new Error("apiKey / authDomain / projectId / appId がそろっていません");
+  }
+  return obj;
+}
+
+function renderTodayBanner() {
+  const el = $("#today-banner");
+  if (!el) return;
+  if (cloud.cfg && cloud.cfg.config && cloud.ready && !cloud.user && !cloud.error) {
+    el.innerHTML = `<div class="banner"><span>Googleでログインすると、家族みんなで同じ当番表を使えます。</span><button data-act="signin">ログイン</button></div>`;
+  } else if (cloud.active && cloud.user && !myMember()) {
+    el.innerHTML = `<div class="banner"><span>あなたがどのメンバーか設定すると、自分の当番がひと目でわかります。</span><button data-act="goto-manage">設定へ</button></div>`;
+  } else {
+    el.innerHTML = "";
+  }
+}
+
+function renderCloud() {
+  const el = $("#cloud-card");
+  if (!el) return;
+  const off = `<button class="btn-danger" data-act="cloud-reset">この端末の共有設定を解除</button>`;
+  let html = `<h2>家族で共有（Google連携）</h2>`;
+
+  if (!cloud.cfg || !cloud.cfg.config) {
+    html += `
+      <p class="hint">家族それぞれのGoogleアカウントでログインすると、みんなで同じ当番表を共有でき、自分の当番だけを表示したり、Googleカレンダーで通知を受け取れます。</p>
+      <p class="hint">📨 <b>招待リンクをもらった人</b>は、そのリンクを開くだけで設定は不要です。</p>
+      <p class="hint">🔧 <b>最初のひとり</b>は、<a href="https://github.com/5newold111/Uni-talot/blob/main/README.md" target="_blank" rel="noopener">READMEの手順</a>で無料のFirebaseプロジェクトを作り、設定（firebaseConfig）を下に貼り付けてください。</p>
+      ${location.protocol === "file:" ? `<p class="hint">⚠️ 共有機能は、Webに公開したURL（https）で開いたときだけ使えます。</p>` : ""}
+      <button class="btn-accent" data-act="cloud-start">共有の設定をはじめる</button>
+      <div id="cloud-setup" style="display:none">
+        <textarea class="cfg" id="cloud-config" placeholder='const firebaseConfig = { apiKey: "...", authDomain: "...", ... }; をそのまま貼り付け'></textarea>
+        <div class="cloud-row"><button class="btn-add" data-act="cloud-save-config">保存</button></div>
+      </div>`;
+  } else if (!cloud.ready) {
+    html += `<p class="hint">読み込み中…</p>`;
+  } else if (cloud.error) {
+    html += `<p class="hint">⚠️ ${esc(cloud.error)}</p>
+      <div class="cloud-row"><button class="btn-plain" data-act="cloud-retry">再読み込み</button>${off}</div>`;
+  } else if (!cloud.user) {
+    html += `<p class="hint">${cloud.joined ? "招待リンクを読み込みました。" : ""}Googleでログインして、家族の当番表とつながりましょう。</p>
+      <div class="cloud-row"><button class="g-btn" data-act="signin"><span class="g">G</span> Googleでログイン</button>${off}</div>`;
+  } else if (!cloud.cfg.familyId) {
+    html += `<p class="hint">${esc(cloud.user.email || "")} でログイン中</p>
+      <p class="hint">家族グループを作ると、いま登録済みのメンバー・場所・実績をそのまま引き継いで共有をはじめられます。</p>
+      <div class="cloud-row"><button class="btn-accent" data-act="cloud-create">家族グループを作る</button><button class="btn-plain" data-act="cloud-logout">ログアウト</button>${off}</div>`;
+  } else if (!cloud.active) {
+    html += `<p class="hint">同期中…</p>`;
+  } else {
+    const me = myMember();
+    html += `<p class="hint">${esc(cloud.user.email || "")} でログイン中 ・ グループ: ${esc(cloud.cfg.familyId)}</p>`;
+    if (me) {
+      html += `<p class="hint">あなたのメンバー: <b>${esc(me.name)}</b></p>`;
+    } else {
+      const free = store.members.filter(m => !m.uid);
+      html += `<p class="hint">あなたはどのメンバーですか？</p>
+        <div class="chips">
+          ${free.map(m => `<button data-act="claim" data-id="${m.id}">${esc(m.name)}</button>`).join("")}
+          <button data-act="claim-new">＋ 自分を追加</button>
+        </div>`;
+    }
+    html += `<div class="cloud-row">
+        <button class="btn-accent" data-act="cloud-invite">招待リンクをコピー</button>
+        <button class="btn-plain" data-act="cloud-logout">ログアウト</button>${off}</div>
+      <p class="hint">招待リンクを家族に送ると、開いてGoogleでログインするだけで同じ当番表が使えます。リンクは家族以外に教えないでください。</p>`;
+  }
+  el.innerHTML = html;
+
+  const cal = $("#cal-card");
+  if (cal) {
+    cal.style.display = (cloud.active && cloud.user && myMember()) ? "" : "none";
+    const last = localStorage.getItem("toban-cal-last");
+    $("#cal-last").textContent = last ? "前回の登録: " + last : "";
+  }
+}
+
+async function cloudAction(act, btn) {
+  try {
+    switch (act) {
+      case "cloud-start": {
+        const p = $("#cloud-setup");
+        if (p) p.style.display = p.style.display === "none" ? "" : "none";
+        break;
+      }
+      case "cloud-save-config": {
+        const obj = parseConfigText($("#cloud-config").value);
+        cloud.cfg = { config: obj, familyId: null };
+        saveCloudCfg();
+        await cloudInit();
+        break;
+      }
+      case "cloud-retry": location.reload(); break;
+      case "signin": await signInGoogle(false); break;
+      case "cloud-create": btn.disabled = true; await createFamily(); break;
+      case "cloud-invite": {
+        const link = inviteLink();
+        try {
+          await navigator.clipboard.writeText(link);
+          alert("招待リンクをコピーしました。家族に送ってね。");
+        } catch (e) {
+          prompt("この招待リンクを家族に送ってね：", link);
+        }
+        break;
+      }
+      case "cloud-logout":
+        if (cloud.FB && cloud.auth) await cloud.FB.signOut(cloud.auth);
+        break;
+      case "cloud-reset":
+        if (confirm("この端末の共有設定を解除しますか？（家族のデータは消えません。この端末はローカルの記録に戻ります）")) {
+          unsubscribeFamily();
+          if (cloud.FB && cloud.auth) { try { await cloud.FB.signOut(cloud.auth); } catch (e) {} }
+          cloud.cfg = null; saveCloudCfg();
+          cloud.user = null; cloud.ready = false; cloud.error = null; cloud.joined = false;
+          store = load();
+          renderAll();
+        }
+        break;
+      case "claim": claimMember(btn.dataset.id); break;
+      case "claim-new": claimNew(); break;
+      case "goto-manage": showView("manage"); break;
+      case "mine-all": viewMine = false; renderToday(); break;
+      case "mine-only": viewMine = true; renderToday(); break;
+      case "cal-sync": await syncCalendar(); break;
+      case "cal-clear": await clearCalendar(); break;
+    }
+  } catch (e) {
+    if (e && (e.code === "auth/popup-closed-by-user" || e.code === "auth/cancelled-popup-request")) return;
+    alert("うまくいきませんでした：" + (e.message || e));
+  }
+}
+
+/* ---- Googleカレンダー通知 ---- */
+
+async function ensureCalToken() {
+  if (cloud.accessToken && cloud.tokenHasCal && Date.now() - cloud.tokenAt < 45 * 60 * 1000) {
+    return cloud.accessToken;
+  }
+  await signInGoogle(true);
+  if (!cloud.accessToken || !cloud.tokenHasCal) throw new Error("カレンダーへのアクセスを許可してください");
+  return cloud.accessToken;
+}
+
+async function calFetch(path, opts) {
+  const token = await ensureCalToken();
+  const res = await fetch("https://www.googleapis.com/calendar/v3" + path, Object.assign({}, opts, {
+    headers: Object.assign(
+      { "Authorization": "Bearer " + token, "Content-Type": "application/json" },
+      opts && opts.headers
+    ),
+  }));
+  if (res.status === 401 || res.status === 403) {
+    cloud.accessToken = null;
+    throw new Error("Googleの認証が切れたか、カレンダーの権限がありません。もう一度お試しください（" + res.status + "）");
+  }
+  if (!res.ok) throw new Error("カレンダーAPIエラー（" + res.status + "）");
+  if (res.status === 204) return null;
+  const text = await res.text();
+  return text ? JSON.parse(text) : null;
+}
+
+async function deleteAppEvents() {
+  const t = today();
+  const timeMin = encodeURIComponent(t.toISOString());
+  const timeMax = encodeURIComponent(addDays(t, 15).toISOString());
+  const list = await calFetch(`/calendars/primary/events?privateExtendedProperty=tobanApp%3D1&timeMin=${timeMin}&timeMax=${timeMax}&singleEvents=true&maxResults=100`);
+  for (const ev of ((list && list.items) || [])) {
+    await calFetch("/calendars/primary/events/" + ev.id, { method: "DELETE" });
+  }
+}
+
+async function syncCalendar() {
+  const me = myMember();
+  if (!me) { alert("先に「あなたのメンバー」を設定してください"); return; }
+  const hour = Number(($("#cal-hour") && $("#cal-hour").value) || 8);
+  const btn = $("#cal-sync");
+  btn.disabled = true; btn.textContent = "登録中…";
+  try {
+    await deleteAppEvents(); // 前回登録した分を消してから登録し直す（重複防止）
+    const t = today();
+    let count = 0;
+    for (let i = 0; i < 14; i++) {
+      const d = addDays(t, i);
+      const names = [];
+      for (const task of store.tasks) {
+        if (task.freq === "daily" && isMe(assignee(task, d))) names.push(task.name);
+        if (task.freq === "weekly" && d.getDay() === 6 && isMe(assignee(task, d))) names.push(task.name + "（今週分）");
+      }
+      if (!names.length) continue;
+      const start = new Date(d.getFullYear(), d.getMonth(), d.getDate(), hour, 0, 0);
+      const end = new Date(start.getTime() + 30 * 60 * 1000);
+      await calFetch("/calendars/primary/events", {
+        method: "POST",
+        body: JSON.stringify({
+          summary: "🧹 当番：" + names.join("・"),
+          description: "「おそうじ当番表」から自動登録",
+          start: { dateTime: start.toISOString() },
+          end: { dateTime: end.toISOString() },
+          reminders: { useDefault: false, overrides: [{ method: "popup", minutes: 0 }] },
+          extendedProperties: { private: { tobanApp: "1" } },
+        }),
+      });
+      count++;
+    }
+    localStorage.setItem("toban-cal-last", new Date().toLocaleString("ja-JP") + "（" + count + "日分）");
+    alert("Googleカレンダーに " + count + " 日分の当番を登録しました。");
+  } catch (e) {
+    alert("カレンダー登録に失敗しました：" + (e.message || e));
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "14日分を登録";
+    renderCloud();
+  }
+}
+
+async function clearCalendar() {
+  try {
+    await deleteAppEvents();
+    localStorage.removeItem("toban-cal-last");
+    alert("カレンダーから当番の予定を削除しました。");
+  } catch (e) {
+    alert("削除に失敗しました：" + (e.message || e));
+  }
+  renderCloud();
+}
+
+// テスト用の観測口（フェイクFirebase注入時のみ有効化）
+if (window.__tobanFakeFB) {
+  window.__tobanDbg = {
+    inviteLink: () => inviteLink(),
+    store: () => store,
+    cloud,
+  };
+}
+
+/* ---- 日付が変わったら表示を更新 ---- */
+let shownDay = dkey(today());
+setInterval(() => {
+  const now = dkey(today());
+  if (now !== shownDay) { shownDay = now; renderAll(); }
+}, 60 * 1000);
+document.addEventListener("visibilitychange", () => {
+  if (!document.hidden) renderAll();
+});
+
+renderAll();
+cloudInit();
+</script>
+</body>
+</html>
